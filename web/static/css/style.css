@@ -1,0 +1,310 @@
+/* BTC Trading Dashboard Styles */
+
+body {
+    background-color: #f8f9fa;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Current Price Display */
+#current-price {
+    font-size: 3.5rem;
+    letter-spacing: -0.05em;
+    transition: color 0.3s ease-out;
+    font-variant-numeric: tabular-nums;
+}
+
+#current-price.price-up {
+    color: #28a745 !important;
+}
+
+#current-price.price-down {
+    color: #dc3545 !important;
+}
+
+#price-change {
+    font-size: 1.2rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.3s;
+}
+
+#price-change.positive {
+    background-color: #28a745 !important;
+}
+
+#price-change.negative {
+    background-color: #dc3545 !important;
+}
+
+/* Connection Status */
+#connection-status {
+    font-size: 0.9rem;
+}
+
+#connection-status.connected {
+    background-color: #28a745 !important;
+}
+
+#connection-status.disconnected {
+    background-color: #dc3545 !important;
+}
+
+/* Strategy Cards */
+.strategy-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.strategy-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.strategy-card.running {
+    border-left: 4px solid #28a745;
+}
+
+.stat-box {
+    text-align: center;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #212529;
+}
+
+.stat-value.buy {
+    color: #28a745;
+}
+
+.stat-value.sell {
+    color: #dc3545;
+}
+
+/* Status Badge */
+.status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Activity Feed */
+.activity-feed {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.activity-item {
+    padding: 0.75rem;
+    border-left: 3px solid #dee2e6;
+    margin-bottom: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.activity-item.info {
+    border-left-color: #17a2b8;
+}
+
+.activity-item.success {
+    border-left-color: #28a745;
+}
+
+.activity-item.warning {
+    border-left-color: #ffc107;
+}
+
+.activity-item.danger {
+    border-left-color: #dc3545;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.activity-message {
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+/* Backtest Results */
+.result-card {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.result-card-title {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.result-card-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #212529;
+}
+
+.result-card-value.success {
+    color: #28a745;
+}
+
+.result-card-value.danger {
+    color: #dc3545;
+}
+
+.result-card-value.warning {
+    color: #ffc107;
+}
+
+/* Charts */
+canvas {
+    max-height: 400px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #current-price {
+        font-size: 2.5rem;
+    }
+
+    .stat-value {
+        font-size: 1.2rem;
+    }
+
+    .result-card-value {
+        font-size: 1.5rem;
+    }
+}
+
+/* Toggle Switch */
+.form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+/* Progress Bar */
+.progress {
+    height: 2rem;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+    font-weight: bold;
+}
+
+/* Scrollbar Styling */
+.activity-feed::-webkit-scrollbar {
+    width: 8px;
+}
+
+.activity-feed::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.activity-feed::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.activity-feed::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Table Styling */
+.table-sm td, .table-sm th {
+    padding: 0.5rem;
+}
+
+/* Comparison Table */
+.comparison-winner {
+    background-color: #d4edda;
+    font-weight: bold;
+}
+
+/* Loading Animation */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+}
+
+/* Card Headers */
+.card-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+/* Buttons */
+.btn {
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Badge Colors */
+.badge.bg-success {
+    background-color: #28a745 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* Navbar */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Card Animations */
+.card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC Trading Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="bi bi-graph-up"></i> BTC 5-Min Trading Dashboard
+            </span>
+            <span class="badge bg-success" id="connection-status">Connected</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Current Price Display -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-dark text-white">
+                    <div class="card-body text-center">
+                        <h2 class="mb-0">Current BTC Price</h2>
+                        <h1 class="display-3 fw-bold" id="current-price">$--,---</h1>
+                        <span class="badge" id="price-change">--%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="live-tab" data-bs-toggle="tab" data-bs-target="#live"
+                        type="button" role="tab">
+                    Live Trading
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="backtest-tab" data-bs-toggle="tab" data-bs-target="#backtest"
+                        type="button" role="tab">
+                    Backtesting Lab
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabsContent">
+            <!-- LIVE TRADING TAB -->
+            <div class="tab-pane fade show active" id="live" role="tabpanel">
+                <div class="row mt-4">
+                    <!-- Historical Price Chart -->
+                    <div class="col-12 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Historical Price (Last 100 Periods)</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="priceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Strategy Cards -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card strategy-card" id="pattern-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5>Pattern Strategy</h5>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="pattern-toggle">
+                                    <label class="form-check-label" for="pattern-toggle">
+                                        <span class="status-badge badge bg-secondary" id="pattern-status">Stopped</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Current Position</div>
+                                            <div class="stat-value" id="pattern-position">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Final Win Rate</div>
+                                            <div class="stat-value" id="pattern-win-rate">--%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Total Predictions:</small>
+                                        <strong id="pattern-total">0</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Last 10:</small>
+                                        <strong id="pattern-last10">--%</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="card strategy-card" id="random-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5>Random Strategy</h5>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="random-toggle">
+                                    <label class="form-check-label" for="random-toggle">
+                                        <span class="status-badge badge bg-secondary" id="random-status">Stopped</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Current Position</div>
+                                            <div class="stat-value" id="random-position">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Final Win Rate</div>
+                                            <div class="stat-value" id="random-win-rate">--%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Total Predictions:</small>
+                                        <strong id="random-total">0</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Last 10:</small>
+                                        <strong id="random-last10">--%</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Activity Feed -->
+                    <div class="col-md-8 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Activity Feed</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="activity-feed" class="activity-feed">
+                                    <div class="text-muted text-center">No activity yet...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Comparison -->
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Comparison</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th></th>
+                                            <th>Pattern</th>
+                                            <th>Random</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Win Rate</td>
+                                            <td id="comp-pattern-wr">--</td>
+                                            <td id="comp-random-wr">--</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Total Trades</td>
+                                            <td id="comp-pattern-total">--</td>
+                                            <td id="comp-random-total">--</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BACKTESTING TAB -->
+            <div class="tab-pane fade" id="backtest" role="tabpanel">
+                <div class="row mt-4">
+                    <!-- Backtest Configuration -->
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Configuration</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Strategy</label>
+                                    <select class="form-select" id="backtest-strategy">
+                                        <option value="pattern">Pattern</option>
+                                        <option value="random">Random</option>
+                                        <option value="both">Both (Compare)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        Number of Periods: <span id="periods-value">1000</span>
+                                    </label>
+                                    <input type="range" class="form-range" id="backtest-periods"
+                                           min="100" max="2000" step="100" value="1000">
+                                    <small class="text-muted">~<span id="hours-estimate">83</span> hours of data</small>
+                                </div>
+                                <button class="btn btn-primary w-100" id="run-backtest-btn">
+                                    <span id="backtest-btn-text">Run Backtest</span>
+                                    <span id="backtest-spinner" class="spinner-border spinner-border-sm d-none"></span>
+                                </button>
+                                <div class="progress mt-3 d-none" id="backtest-progress-container">
+                                    <div class="progress-bar" id="backtest-progress" style="width: 0%">0%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Backtest Results -->
+                    <div class="col-md-8 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Results</h5>
+                            </div>
+                            <div class="card-body" id="backtest-results">
+                                <div class="text-muted text-center">
+                                    Run a backtest to see results...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
