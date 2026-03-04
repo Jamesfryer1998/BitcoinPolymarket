@@ -348,6 +348,25 @@ def get_activity():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/trades/<strategy_name>')
+def get_trades(strategy_name):
+    """Get trade history for a strategy"""
+    try:
+        if strategy_name not in strategy_runners:
+            return jsonify({"error": "Strategy not found"}), 404
+
+        runner = strategy_runners[strategy_name]
+        trades = runner.trade_storage.get_history()
+
+        return jsonify({
+            "strategy": strategy_name,
+            "trades": trades,
+            "count": len(trades)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/strategy/<strategy_name>/start', methods=['POST'])
 def start_strategy(strategy_name):
     """Start a strategy"""
@@ -388,6 +407,71 @@ def stop_strategy(strategy_name):
                 "status": "not_running",
                 "strategy": strategy_name
             })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/trading/config', methods=['POST'])
+def update_trading_config():
+    """Update trading configuration (bet amount, starting capital)"""
+    try:
+        data = request.get_json()
+        bet_amount = data.get('bet_amount')
+        starting_capital = data.get('starting_capital')
+
+        if bet_amount is not None:
+            bet_amount = float(bet_amount)
+            if bet_amount < 1:
+                return jsonify({"error": "Bet amount must be at least $1"}), 400
+
+        if starting_capital is not None:
+            starting_capital = float(starting_capital)
+            if starting_capital < 100:
+                return jsonify({"error": "Starting capital must be at least $100"}), 400
+
+        # Update all strategy runners
+        for name, runner in strategy_runners.items():
+            if bet_amount is not None:
+                runner.trading_engine.bet_amount = bet_amount
+            if starting_capital is not None:
+                runner.trading_engine.starting_capital = starting_capital
+
+        return jsonify({
+            "status": "success",
+            "bet_amount": bet_amount,
+            "starting_capital": starting_capital,
+            "message": "Configuration updated for all strategies"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/trading/reset', methods=['POST'])
+def reset_trading():
+    """Reset all trading engines (balances, P/L, trade history)"""
+    try:
+        # Reset all strategy runners
+        for name, runner in strategy_runners.items():
+            # Reset trading engine
+            runner.trading_engine.reset()
+
+            # Clear trade storage
+            runner.trade_storage.clear_history()
+
+            # Clear current trade IDs
+            runner.current_trade_ids = []
+
+        # Emit update to refresh UI
+        strategies_status = {}
+        for name, runner in strategy_runners.items():
+            strategies_status[name] = runner.get_status()
+
+        socketio.emit('strategies_update', strategies_status)
+
+        return jsonify({
+            "status": "success",
+            "message": "All balances and P/L reset to starting values"
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

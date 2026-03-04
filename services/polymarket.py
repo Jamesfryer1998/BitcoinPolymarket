@@ -105,7 +105,7 @@ class PolymarketAPI:
             try:
                 # Fetch orderbook from CLOB API
                 r = requests.get(
-                    f"{self.clob_api}/price",
+                    f"{self.clob_api}/midpoint",
                     params={"token_id": token_id},
                     timeout=10
                 )

@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadInitialData();
     setupEventListeners();
     setupBacktestListeners();
+    initTradingConfig();
     startPriceUpdates();
     startClock();
     setupThemeToggle();
@@ -365,6 +366,96 @@ function initializePriceChart() {
                 pointHoverBackgroundColor: '#00d4aa',
                 pointHoverBorderColor: '#fff',
                 pointHoverBorderWidth: 2
+            },
+            // Pattern Strategy Trade Markers
+            {
+                label: 'Pattern UP ✓',
+                data: [],
+                borderColor: '#00d4aa',
+                backgroundColor: '#00d4aa',
+                pointStyle: 'triangle',
+                pointRadius: 8,
+                pointRotation: 0,
+                showLine: false,
+                order: 1
+            },
+            {
+                label: 'Pattern UP ✗',
+                data: [],
+                borderColor: '#00d4aa',
+                backgroundColor: 'transparent',
+                pointBorderWidth: 2,
+                pointStyle: 'triangle',
+                pointRadius: 8,
+                pointRotation: 0,
+                showLine: false,
+                order: 1
+            },
+            {
+                label: 'Pattern DOWN ✓',
+                data: [],
+                borderColor: '#ff4976',
+                backgroundColor: '#ff4976',
+                pointStyle: 'triangle',
+                pointRadius: 8,
+                pointRotation: 180,
+                showLine: false,
+                order: 1
+            },
+            {
+                label: 'Pattern DOWN ✗',
+                data: [],
+                borderColor: '#ff4976',
+                backgroundColor: 'transparent',
+                pointBorderWidth: 2,
+                pointStyle: 'triangle',
+                pointRadius: 8,
+                pointRotation: 180,
+                showLine: false,
+                order: 1
+            },
+            // Random Strategy Trade Markers
+            {
+                label: 'Random UP ✓',
+                data: [],
+                borderColor: '#00d4aa',
+                backgroundColor: '#00d4aa',
+                pointStyle: 'circle',
+                pointRadius: 6,
+                showLine: false,
+                order: 1
+            },
+            {
+                label: 'Random UP ✗',
+                data: [],
+                borderColor: '#00d4aa',
+                backgroundColor: 'transparent',
+                pointBorderWidth: 2,
+                pointStyle: 'circle',
+                pointRadius: 6,
+                showLine: false,
+                order: 1
+            },
+            {
+                label: 'Random DOWN ✓',
+                data: [],
+                borderColor: '#ff4976',
+                backgroundColor: '#ff4976',
+                pointStyle: 'circle',
+                pointRadius: 6,
+                showLine: false,
+                order: 1
+            },
+            {
+                label: 'Random DOWN ✗',
+                data: [],
+                borderColor: '#ff4976',
+                backgroundColor: 'transparent',
+                pointBorderWidth: 2,
+                pointStyle: 'circle',
+                pointRadius: 6,
+                showLine: false,
+                order: 1
             }]
         },
         options: {
@@ -447,6 +538,76 @@ function updatePriceChart(history) {
     priceChart.data.labels = labels;
     priceChart.data.datasets[0].data = prices;
     priceChart.update();
+
+    // Load trade markers
+    loadTradeMarkers();
+}
+
+function loadTradeMarkers() {
+    // Load trades for both strategies
+    Promise.all([
+        fetch('/api/trades/pattern').then(r => r.json()),
+        fetch('/api/trades/random').then(r => r.json())
+    ])
+    .then(([patternData, randomData]) => {
+        const patternTrades = patternData.trades || [];
+        const randomTrades = randomData.trades || [];
+
+        updateTradeMarkers('pattern', patternTrades);
+        updateTradeMarkers('random', randomTrades);
+
+        priceChart.update();
+    })
+    .catch(error => console.error('Error loading trade markers:', error));
+}
+
+function updateTradeMarkers(strategyName, trades) {
+    // Filter only completed trades with results
+    const completedTrades = trades.filter(t => t.result && t.exit_price !== undefined);
+
+    // Map trades to chart data points
+    const chartLabels = priceChart.data.labels;
+    const chartPrices = priceChart.data.datasets[0].data;
+
+    // Determine dataset indices based on strategy
+    const baseIndex = strategyName === 'pattern' ? 1 : 5; // Pattern starts at 1, Random at 5
+
+    // Initialize arrays for each trade type
+    const upCorrect = new Array(chartLabels.length).fill(null);
+    const upIncorrect = new Array(chartLabels.length).fill(null);
+    const downCorrect = new Array(chartLabels.length).fill(null);
+    const downIncorrect = new Array(chartLabels.length).fill(null);
+
+    completedTrades.forEach(trade => {
+        // Find the chart index for this trade's timestamp
+        const tradeDate = new Date(trade.timestamp);
+        const tradeTime = tradeDate.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'});
+
+        const chartIndex = chartLabels.findIndex(label => label === tradeTime);
+
+        if (chartIndex !== -1 && chartPrices[chartIndex] !== undefined) {
+            const price = chartPrices[chartIndex];
+            const direction = trade.direction;
+            const correct = trade.result === 'win';
+
+            // Place marker in appropriate array
+            if (direction === 'UP' && correct) {
+                upCorrect[chartIndex] = price;
+            } else if (direction === 'UP' && !correct) {
+                upIncorrect[chartIndex] = price;
+            } else if (direction === 'DOWN' && correct) {
+                downCorrect[chartIndex] = price;
+            } else if (direction === 'DOWN' && !correct) {
+                downIncorrect[chartIndex] = price;
+            }
+        }
+    });
+
+    // Update datasets
+    priceChart.data.datasets[baseIndex].data = upCorrect;
+    priceChart.data.datasets[baseIndex + 1].data = upIncorrect;
+    priceChart.data.datasets[baseIndex + 2].data = downCorrect;
+    priceChart.data.datasets[baseIndex + 3].data = downIncorrect;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -583,12 +744,15 @@ function displayActivityFeed(items) {
         return;
     }
 
+    // Items are already in reverse chronological order from server
+    // Just append them in order (don't insert at top during initial load)
     items.forEach(item => {
-        addActivityItemToFeed(item);
+        addActivityItemToFeed(item, false); // false = append instead of prepend
     });
 }
 
-function addActivityItemToFeed(item) {
+
+function addActivityItemToFeed(item, prepend = true) {
     const feed = document.getElementById('activity-feed');
 
     // Remove "no activity" message if present
@@ -599,12 +763,15 @@ function addActivityItemToFeed(item) {
     const div = document.createElement('div');
     div.className = `activity-item ${item.type}`;
 
-    // Format timestamp in 24-hour format
+    // Format timestamp in 24-hour format with date
     const date = new Date(item.timestamp);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
-    const time = `${hours}:${minutes}:${seconds}`;
+    const time = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
     // Format message with strategy if present
     const message = item.strategy
@@ -616,7 +783,13 @@ function addActivityItemToFeed(item) {
         <div class="activity-message">${message}</div>
     `;
 
-    feed.insertBefore(div, feed.firstChild);
+    if (prepend) {
+        // For new real-time items, add to top
+        feed.insertBefore(div, feed.firstChild);
+    } else {
+        // For initial load, append to maintain server order (already newest-first)
+        feed.appendChild(div);
+    }
 
     // Keep only last 50 items visible
     while (feed.children.length > 50) {
@@ -644,7 +817,7 @@ function handleStrategyPrediction(data) {
         message: `Predicted ${data.prediction} (Score: ${data.score >= 0 ? '+' : ''}${data.score})`,
         strategy: data.strategy
     };
-    addActivityItemToFeed(item);
+    addActivityItemToFeed(item, true); // true = prepend to top
 
     // Update position in real-time
     const positionElement = document.getElementById(`${data.strategy}-position`);
@@ -666,7 +839,7 @@ function handleStrategyResult(data) {
         message: `${correct ? '✓' : '✗'} ${pred.actual_outcome} - Predicted ${pred.final_position} (${pred.price_change_pct >= 0 ? '+' : ''}${pred.price_change_pct.toFixed(2)}%)`,
         strategy: data.strategy
     };
-    addActivityItemToFeed(item);
+    addActivityItemToFeed(item, true); // true = prepend to top
 
     // Update strategy stats in real-time
     if (data.stats) {
@@ -682,22 +855,53 @@ function handleStrategyStatus(data) {
         message: data.status === 'started' ? 'Started' : 'Stopped',
         strategy: data.strategy
     };
-    addActivityItemToFeed(item);
+    addActivityItemToFeed(item, true); // true = prepend to top
 }
 
 function handleMidPeriodCheck(data) {
+    const strategyName = data.strategy;
+
+    console.log(`[MID-PERIOD] ${strategyName.toUpperCase()} - Received prices:`, {
+        up: data.up_price,
+        down: data.down_price,
+        reversed: data.reversed
+    });
+
+    // Update Up/Down prices (refreshed at midpoint regardless of reversal)
+    if (data.up_price !== undefined && data.up_price !== null) {
+        const upPriceElement = document.getElementById(`${strategyName}-up-price`);
+        console.log(`[MID-PERIOD] Updating UP price element:`, upPriceElement ? 'FOUND' : 'NOT FOUND');
+        if (upPriceElement) {
+            upPriceElement.textContent = data.up_price.toFixed(3);
+            console.log(`[MID-PERIOD] UP price updated to: ${data.up_price.toFixed(3)}`);
+        }
+    } else {
+        console.warn(`[MID-PERIOD] UP price is undefined or null:`, data.up_price);
+    }
+
+    if (data.down_price !== undefined && data.down_price !== null) {
+        const downPriceElement = document.getElementById(`${strategyName}-down-price`);
+        console.log(`[MID-PERIOD] Updating DOWN price element:`, downPriceElement ? 'FOUND' : 'NOT FOUND');
+        if (downPriceElement) {
+            downPriceElement.textContent = data.down_price.toFixed(3);
+            console.log(`[MID-PERIOD] DOWN price updated to: ${data.down_price.toFixed(3)}`);
+        }
+    } else {
+        console.warn(`[MID-PERIOD] DOWN price is undefined or null:`, data.down_price);
+    }
+
     // Activity item is already saved by server for both reversed and confirmed
     if (data.reversed) {
         const item = {
             timestamp: new Date().toISOString(),
             type: 'warning',
             message: `Mid-check: Position REVERSED to ${data.new_position}`,
-            strategy: data.strategy
+            strategy: strategyName
         };
-        addActivityItemToFeed(item);
+        addActivityItemToFeed(item, true); // true = prepend to top
 
         // Update position in real-time
-        const positionElement = document.getElementById(`${data.strategy}-position`);
+        const positionElement = document.getElementById(`${strategyName}-position`);
         if (positionElement) {
             positionElement.textContent = data.new_position;
             positionElement.className = `stat-value ${data.new_position.toLowerCase()}`;
@@ -708,9 +912,9 @@ function handleMidPeriodCheck(data) {
             timestamp: new Date().toISOString(),
             type: 'info',
             message: `Mid-check: Position ${data.old_position} confirmed`,
-            strategy: data.strategy
+            strategy: strategyName
         };
-        addActivityItemToFeed(item);
+        addActivityItemToFeed(item, true); // true = prepend to top
     }
 }
 
@@ -722,7 +926,7 @@ function handleBackfillComplete(data) {
         message: `Backfilled ${data.periods_added} historical periods from Binance`,
         strategy: data.strategy
     };
-    addActivityItemToFeed(item);
+    addActivityItemToFeed(item, true); // true = prepend to top
 }
 
 function handleGapFilled(data) {
@@ -733,7 +937,7 @@ function handleGapFilled(data) {
         message: `Filled ${data.gaps_filled} missing periods`,
         strategy: data.strategy || 'system'
     };
-    addActivityItemToFeed(item);
+    addActivityItemToFeed(item, true); // true = prepend to top
 }
 
 function handleBetPlaced(data) {
@@ -755,6 +959,23 @@ function handleBetPlaced(data) {
         const balanceElement = document.getElementById(`${strategyName}-balance`);
         if (balanceElement) balanceElement.textContent = `$${data.balance.toFixed(2)}`;
     }
+
+    // Add activity item to feed
+    const direction = data.direction;
+    const amount = data.bet_amount;
+    const price = data.entry_price;
+    const potential = data.potential_profit;
+    const midpoint = data.is_midpoint ? " (Midpoint)" : "";
+    const message = `Bet placed${midpoint} - ${direction} - $${amount.toFixed(2)} at ${price.toFixed(3)} - Potential: $${potential >= 0 ? '+' : ''}${potential.toFixed(2)}`;
+
+    const activityItem = {
+        timestamp: data.timestamp || new Date().toISOString(),
+        type: 'info',
+        message: message,
+        strategy: strategyName
+    };
+
+    addActivityItemToFeed(activityItem, true); // true = prepend to top
 }
 
 function handlePositionClosed(data) {
@@ -784,6 +1005,24 @@ function handlePositionClosed(data) {
             })
             .catch(error => console.error('Error updating P&L:', error));
     }
+
+    // Add activity item to feed
+    const outcome = data.outcome;
+    const pnl = data.net_pnl;
+    const balance = data.balance;
+    const message = `Trade closed - ${outcome} - P&L: $${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} - Balance: $${balance.toFixed(2)}`;
+
+    const activityItem = {
+        timestamp: data.timestamp || new Date().toISOString(),
+        type: pnl > 0 ? 'success' : 'danger',
+        message: message,
+        strategy: strategyName
+    };
+
+    addActivityItemToFeed(activityItem, true); // true = prepend to top
+
+    // Reload trade markers to show the new trade on the chart
+    loadTradeMarkers();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -809,6 +1048,14 @@ function toggleStrategy(strategy, start) {
         .then(response => response.json())
         .then(data => {
             console.log(`Strategy ${strategy} ${start ? 'started' : 'stopped'}`, data);
+
+            // Immediately fetch updated strategy status to update UI
+            fetch('/api/strategies')
+                .then(response => response.json())
+                .then(strategies => {
+                    updateStrategiesDisplay(strategies);
+                })
+                .catch(error => console.error('Error fetching strategy status:', error));
         })
         .catch(error => {
             console.error('Error toggling strategy:', error);
@@ -1030,4 +1277,124 @@ function renderComparisonResults(results) {
             </div>
         </div>
     `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRADING CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
+
+function initTradingConfig() {
+    const updateConfigBtn = document.getElementById('update-config-btn');
+    const resetTradingBtn = document.getElementById('reset-trading-btn');
+
+    // Load current configuration from strategies
+    fetch('/api/strategies')
+        .then(response => response.json())
+        .then(strategies => {
+            // Get config from first strategy (they all share the same config)
+            const firstStrategy = Object.values(strategies)[0];
+            if (firstStrategy) {
+                // Note: The trading engine's bet_amount and starting_capital are not exposed in get_status()
+                // We'll use the defaults from the input fields, but users can change them
+                console.log('Current strategy status:', firstStrategy);
+            }
+        })
+        .catch(error => console.error('Error loading config:', error));
+
+    // Update configuration
+    updateConfigBtn.addEventListener('click', function() {
+        const betAmount = parseFloat(document.getElementById('bet-amount').value);
+        const startingCapital = parseFloat(document.getElementById('starting-capital').value);
+
+        if (isNaN(betAmount) || betAmount < 1) {
+            alert('Bet amount must be at least $1');
+            return;
+        }
+
+        if (isNaN(startingCapital) || startingCapital < 100) {
+            alert('Starting capital must be at least $100');
+            return;
+        }
+
+        // Disable button during request
+        updateConfigBtn.disabled = true;
+        updateConfigBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating...';
+
+        fetch('/api/trading/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                bet_amount: betAmount,
+                starting_capital: startingCapital
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Configuration updated successfully!\n\nNew settings will apply to future trades.');
+
+                // Refresh strategy status to show updated values
+                fetch('/api/strategies')
+                    .then(response => response.json())
+                    .then(strategies => {
+                        updateStrategiesDisplay(strategies);
+                    });
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error updating config:', error);
+            alert('Failed to update configuration: ' + error);
+        })
+        .finally(() => {
+            // Re-enable button
+            updateConfigBtn.disabled = false;
+            updateConfigBtn.innerHTML = '<i class="bi bi-check-circle"></i> Update Configuration';
+        });
+    });
+
+    // Reset trading
+    resetTradingBtn.addEventListener('click', function() {
+        if (!confirm('Are you sure you want to reset all balances and P/L?\n\nThis will:\n- Reset all balances to starting capital\n- Clear all P/L\n- Clear all trade history\n\nThis action cannot be undone.')) {
+            return;
+        }
+
+        // Disable button during request
+        resetTradingBtn.disabled = true;
+        resetTradingBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Resetting...';
+
+        fetch('/api/trading/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('All balances and P/L have been reset successfully!');
+
+                // Refresh strategy status
+                fetch('/api/strategies')
+                    .then(response => response.json())
+                    .then(strategies => {
+                        updateStrategiesDisplay(strategies);
+                    });
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error resetting trading:', error);
+            alert('Failed to reset trading: ' + error);
+        })
+        .finally(() => {
+            // Re-enable button
+            resetTradingBtn.disabled = false;
+            resetTradingBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Reset All Balances & P/L';
+        });
+    });
 }
