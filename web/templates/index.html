@@ -23,7 +23,13 @@
             <span class="navbar-brand mb-0 h1">
                 <i class="bi bi-graph-up"></i> BTC 5-Min Trading Dashboard
             </span>
-            <span class="badge bg-success" id="connection-status">Connected</span>
+            <span class="text-white position-absolute start-50 translate-middle-x" id="current-time" style="font-family: 'Courier New', monospace; font-size: 1.8rem; font-weight: 600;">--:--:--</span>
+            <div class="d-flex align-items-center gap-3">
+                <button id="theme-toggle" class="btn btn-sm" title="Toggle theme">
+                    <span id="theme-icon">🌙</span>
+                </button>
+                <span class="badge bg-success" id="connection-status">Connected</span>
+            </div>
         </div>
     </nav>
 
@@ -164,38 +170,6 @@
                                 <div id="activity-feed" class="activity-feed">
                                     <div class="text-muted text-center">No activity yet...</div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Performance Comparison -->
-                    <div class="col-md-4 mb-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5>Comparison</h5>
-                            </div>
-                            <div class="card-body">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th></th>
-                                            <th>Pattern</th>
-                                            <th>Random</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td>Win Rate</td>
-                                            <td id="comp-pattern-wr">--</td>
-                                            <td id="comp-random-wr">--</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Total Trades</td>
-                                            <td id="comp-pattern-total">--</td>
-                                            <td id="comp-random-total">--</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                     </div>

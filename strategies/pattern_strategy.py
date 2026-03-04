@@ -123,19 +123,19 @@ class PatternStrategy(BaseStrategy):
 
         # Final decision
         if score > 0:
-            prediction = "BUY"
+            prediction = "UP"
         elif score < 0:
-            prediction = "SELL"
+            prediction = "DOWN"
         else:
             # Tie-breaker: use recent win rate
-            prediction = "BUY" if up_rate >= 0.5 else "SELL"
+            prediction = "UP" if up_rate >= 0.5 else "DOWN"
             reasons.append("Score tied - using win rate as tie-breaker")
 
         # Prepare mid-period expectations
         expected_mid_direction = None
-        if prediction == "BUY" and up_periods:
+        if prediction == "UP" and up_periods:
             expected_mid_direction = "UP" if up_mid_up_rate > 0.6 else None
-        elif prediction == "SELL" and down_periods:
+        elif prediction == "DOWN" and down_periods:
             expected_mid_direction = "DOWN" if down_mid_down_rate > 0.6 else None
 
         return prediction, score, reasons, expected_mid_direction

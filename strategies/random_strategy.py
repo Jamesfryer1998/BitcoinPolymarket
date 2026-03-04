@@ -1,5 +1,5 @@
 """
-Random Strategy - Makes random BUY/SELL decisions
+Random Strategy - Makes random UP/DOWN decisions
 """
 import random
 from strategies.base_strategy import BaseStrategy
@@ -9,7 +9,7 @@ from config import MIN_PERIODS
 class RandomStrategy(BaseStrategy):
     """
     Random coin flip strategy.
-    Randomly picks BUY or SELL at each boundary.
+    Randomly picks UP or DOWN at each boundary.
     Serves as a baseline to measure if pattern strategy adds value.
     Expected win rate: ~50%
     """
@@ -30,8 +30,8 @@ class RandomStrategy(BaseStrategy):
         if len(history) < MIN_PERIODS:
             return None, None, [], None
 
-        # Randomly pick BUY or SELL
-        prediction = random.choice(["BUY", "SELL"])
+        # Randomly pick UP or DOWN
+        prediction = random.choice(["UP", "DOWN"])
         score = 0
         reasons = ["Random strategy: coin flip decision"]
         expected_mid_direction = None  # No mid-period expectations for random strategy

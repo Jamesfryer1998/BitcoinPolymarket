@@ -251,3 +251,12 @@ Both scripts track:
 - Web dashboard runs on `localhost:8000` by default (configurable in `config.py`)
 - Both strategies can run simultaneously in the web dashboard
 - CLI tools remain fully functional for headless/automated trading
+
+
+Next I want to do a series of things. Improve the page, it needs to look better, the graph is very basic make it more like polymaekts graph, and
+  add a dark mode (by default). Add a lof dir where we log eveeything out to a all-{YYYYMMDD-HH}.log, and add a mechanism that will clear up logs
+  that are older than 7days. Add a 24h clock to the page at the very top in the header. Ensure the activity monitor times are in 24h and they are
+  ordered properly. 
+
+
+Try use Polymarket API to get the prics of Up and Down at the different intervals we check (start of 5mins and 2.5 mins in). Also show the potential profit based on these. Add a section to enter pricing config, such as bet amount (start with 10$ default). then simulate us making the trades so we cnan keep track of the profit/losses we make.

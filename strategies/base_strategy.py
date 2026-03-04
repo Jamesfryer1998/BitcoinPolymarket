@@ -27,7 +27,7 @@ class BaseStrategy(ABC):
 
         Returns:
             tuple: (prediction, score, reasons, expected_mid_direction)
-                - prediction (str): "BUY" or "SELL"
+                - prediction (str): "UP" or "DOWN"
                 - score (int): Confidence score
                 - reasons (list): List of reason strings
                 - expected_mid_direction (str or None): Expected mid-period direction
@@ -43,11 +43,11 @@ class BaseStrategy(ABC):
             start_price (float): Price at period start
             mid_price (float): Price at mid-period (2:30)
             expected_mid_direction (str or None): Expected direction
-            current_position (str): Current BUY/SELL position
+            current_position (str): Current UP/DOWN position
 
         Returns:
             tuple: (new_position, reversed, message)
-                - new_position (str): New BUY/SELL position
+                - new_position (str): New UP/DOWN position
                 - reversed (bool): Whether position was reversed
                 - message (str): Explanation message
         """
@@ -62,7 +62,7 @@ class BaseStrategy(ABC):
             return current_position, False, f"Mid-period matches expectation ({actual_mid_direction}) - holding {current_position}"
 
         # Pattern not holding, reverse position
-        new_position = "SELL" if current_position == "BUY" else "BUY"
+        new_position = "DOWN" if current_position == "UP" else "UP"
         return new_position, True, f"Mid-period mismatch! Expected {expected_mid_direction}, got {actual_mid_direction} - REVERSING to {new_position}"
 
     def can_trade(self, history_size):

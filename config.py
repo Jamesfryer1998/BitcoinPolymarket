@@ -55,7 +55,11 @@ FLASK_DEBUG = True
 # ─────────────────────────────────────────────
 # LOGGING
 # ─────────────────────────────────────────────
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOGS_DIR, exist_ok=True)
+
 LOG_LEVEL = "INFO"
+LOG_MAX_DAYS = 7  # Maximum days to keep logs
 
 # ─────────────────────────────────────────────
 # TIMING
