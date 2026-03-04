@@ -85,40 +85,28 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Current Price Display
+   Header Price Display
    ═══════════════════════════════════════════════════════════════ */
 
-#current-price {
-    font-size: 4rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+#header-price {
     transition: color 0.3s ease-out;
     font-variant-numeric: tabular-nums;
-    color: var(--text-primary);
 }
 
-#current-price.price-up {
+#header-price.price-up {
     color: var(--color-up) !important;
 }
 
-#current-price.price-down {
+#header-price.price-down {
     color: var(--color-down) !important;
 }
 
-#price-change {
-    font-size: 1.3rem;
-    font-weight: 600;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    transition: all 0.3s;
-}
-
-#price-change.positive {
+#header-price-change.positive {
     background-color: var(--color-up) !important;
     color: #000 !important;
 }
 
-#price-change.negative {
+#header-price-change.negative {
     background-color: var(--color-down) !important;
     color: #fff !important;
 }
@@ -217,6 +205,10 @@ body {
 
 .stat-value.down {
     color: var(--color-down);
+}
+
+.strategy-stat-value {
+    color: var(--text-primary);
 }
 
 /* ═══════════════════════════════════════════════════════════════

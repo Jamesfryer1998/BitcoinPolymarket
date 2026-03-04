@@ -53,6 +53,20 @@ def strategy_event_callback(event_type, data):
     if event_type == 'strategy_prediction':
         message = f"Predicted {data['prediction']} (Score: {data.get('score', 0):+d})"
         activity_manager.add_item('info', message, strategy)
+    elif event_type == 'bet_placed':
+        direction = data['direction']
+        amount = data['bet_amount']
+        price = data['entry_price']
+        potential = data['potential_profit']
+        midpoint = " (Midpoint)" if data.get('is_midpoint') else ""
+        message = f"Bet placed{midpoint} - {direction} - ${amount:.2f} at {price:.3f} - Potential: ${potential:+.2f}"
+        activity_manager.add_item('info', message, strategy)
+    elif event_type == 'position_closed':
+        outcome = data['outcome']
+        pnl = data['net_pnl']
+        balance = data['balance']
+        message = f"Trade closed - {outcome} - P&L: ${pnl:+.2f} - Balance: ${balance:.2f}"
+        activity_manager.add_item('success' if pnl > 0 else 'danger', message, strategy)
     elif event_type == 'strategy_result':
         pred = data['prediction']
         correct = pred['final_correct']

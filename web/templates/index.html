@@ -23,7 +23,11 @@
             <span class="navbar-brand mb-0 h1">
                 <i class="bi bi-graph-up"></i> BTC 5-Min Trading Dashboard
             </span>
-            <span class="text-white position-absolute start-50 translate-middle-x" id="current-time" style="font-family: 'Courier New', monospace; font-size: 1.8rem; font-weight: 600;">--:--:--</span>
+            <div class="d-flex align-items-center gap-3 position-absolute start-50 translate-middle-x">
+                <span id="header-price" style="font-family: 'Courier New', monospace; font-size: 1.4rem; font-weight: 700; color: var(--text-primary);">$--,---</span>
+                <span class="badge" id="header-price-change" style="font-size: 0.9rem;">--%</span>
+                <span class="text-white" id="current-time" style="font-family: 'Courier New', monospace; font-size: 1.4rem; font-weight: 600; margin-left: 1rem;">--:--:--</span>
+            </div>
             <div class="d-flex align-items-center gap-3">
                 <button id="theme-toggle" class="btn btn-sm" title="Toggle theme">
                     <span id="theme-icon">🌙</span>
@@ -34,19 +38,6 @@
     </nav>
 
     <div class="container-fluid mt-4">
-        <!-- Current Price Display -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card bg-dark text-white">
-                    <div class="card-body text-center">
-                        <h2 class="mb-0">Current BTC Price</h2>
-                        <h1 class="display-3 fw-bold" id="current-price">$--,---</h1>
-                        <span class="badge" id="price-change">--%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Tabs -->
         <ul class="nav nav-tabs" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -93,27 +84,53 @@
                             </div>
                             <div class="card-body">
                                 <div class="row mb-3">
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="stat-box">
-                                            <div class="stat-label">Current Position</div>
+                                            <div class="stat-label">Position</div>
                                             <div class="stat-value" id="pattern-position">-</div>
                                         </div>
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="stat-box">
-                                            <div class="stat-label">Final Win Rate</div>
-                                            <div class="stat-value" id="pattern-win-rate">--%</div>
+                                            <div class="stat-label">UP Price</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="pattern-up-price">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">DOWN Price</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="pattern-down-price">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Balance</div>
+                                            <div class="stat-value" style="font-size: 1.3rem; color: var(--text-primary);" id="pattern-balance">$1000</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">P&L</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="pattern-pnl">$0.00</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Win Rate</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="pattern-win-rate">--%</div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-6">
                                         <small class="text-muted">Total Predictions:</small>
-                                        <strong id="pattern-total">0</strong>
+                                        <strong class="strategy-stat-value" id="pattern-total">0</strong>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Last 10:</small>
-                                        <strong id="pattern-last10">--%</strong>
+                                        <strong class="strategy-stat-value" id="pattern-last10">--%</strong>
                                     </div>
                                 </div>
                             </div>
@@ -133,27 +150,53 @@
                             </div>
                             <div class="card-body">
                                 <div class="row mb-3">
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="stat-box">
-                                            <div class="stat-label">Current Position</div>
+                                            <div class="stat-label">Position</div>
                                             <div class="stat-value" id="random-position">-</div>
                                         </div>
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="stat-box">
-                                            <div class="stat-label">Final Win Rate</div>
-                                            <div class="stat-value" id="random-win-rate">--%</div>
+                                            <div class="stat-label">UP Price</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-up-price">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">DOWN Price</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-down-price">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Balance</div>
+                                            <div class="stat-value" style="font-size: 1.3rem; color: var(--text-primary);" id="random-balance">$1000</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">P&L</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-pnl">$0.00</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Win Rate</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-win-rate">--%</div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-6">
                                         <small class="text-muted">Total Predictions:</small>
-                                        <strong id="random-total">0</strong>
+                                        <strong class="strategy-stat-value" id="random-total">0</strong>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Last 10:</small>
-                                        <strong id="random-last10">--%</strong>
+                                        <strong class="strategy-stat-value" id="random-last10">--%</strong>
                                     </div>
                                 </div>
                             </div>

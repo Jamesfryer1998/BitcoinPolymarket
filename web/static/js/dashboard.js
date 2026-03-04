@@ -81,6 +81,14 @@ function initializeSocket() {
     socket.on('gap_filled', function(data) {
         handleGapFilled(data);
     });
+
+    socket.on('bet_placed', function(data) {
+        handleBetPlaced(data);
+    });
+
+    socket.on('position_closed', function(data) {
+        handlePositionClosed(data);
+    });
 }
 
 function updateConnectionStatus(connected) {
@@ -255,8 +263,8 @@ function startPriceUpdates() {
 }
 
 function updateCurrentPrice(price) {
-    const priceElement = document.getElementById('current-price');
-    const changeElement = document.getElementById('price-change');
+    const priceElement = document.getElementById('header-price');
+    const changeElement = document.getElementById('header-price-change');
 
     // Determine direction and update change badge
     if (lastPrice !== null) {
@@ -483,6 +491,40 @@ function updateStrategyCard(name, status) {
         positionElement.className = 'stat-value';
     }
 
+    // Update Up/Down prices
+    const upPriceElement = document.getElementById(`${name}-up-price`);
+    if (status.up_price !== null && status.up_price !== undefined) {
+        upPriceElement.textContent = status.up_price.toFixed(3);
+    } else {
+        upPriceElement.textContent = '-';
+    }
+
+    const downPriceElement = document.getElementById(`${name}-down-price`);
+    if (status.down_price !== null && status.down_price !== undefined) {
+        downPriceElement.textContent = status.down_price.toFixed(3);
+    } else {
+        downPriceElement.textContent = '-';
+    }
+
+    // Update balance
+    const balanceElement = document.getElementById(`${name}-balance`);
+    if (status.balance !== null && status.balance !== undefined) {
+        balanceElement.textContent = `$${status.balance.toFixed(2)}`;
+    } else {
+        balanceElement.textContent = '$1000.00';
+    }
+
+    // Update P&L
+    const pnlElement = document.getElementById(`${name}-pnl`);
+    if (status.total_profit_loss !== null && status.total_profit_loss !== undefined) {
+        const pnl = status.total_profit_loss;
+        pnlElement.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+        pnlElement.style.color = pnl >= 0 ? 'var(--color-up)' : 'var(--color-down)';
+    } else {
+        pnlElement.textContent = '$0.00';
+        pnlElement.style.color = 'var(--text-primary)';
+    }
+
     // Update win rate
     const winRateElement = document.getElementById(`${name}-win-rate`);
     if (performance && performance.final_win_rate !== undefined) {
@@ -692,6 +734,56 @@ function handleGapFilled(data) {
         strategy: data.strategy || 'system'
     };
     addActivityItemToFeed(item);
+}
+
+function handleBetPlaced(data) {
+    // Update strategy card with new prices and balance
+    const strategyName = data.strategy;
+
+    // Update prices
+    if (data.up_price) {
+        const upPriceElement = document.getElementById(`${strategyName}-up-price`);
+        if (upPriceElement) upPriceElement.textContent = data.up_price.toFixed(3);
+    }
+    if (data.down_price) {
+        const downPriceElement = document.getElementById(`${strategyName}-down-price`);
+        if (downPriceElement) downPriceElement.textContent = data.down_price.toFixed(3);
+    }
+
+    // Update balance
+    if (data.balance !== undefined) {
+        const balanceElement = document.getElementById(`${strategyName}-balance`);
+        if (balanceElement) balanceElement.textContent = `$${data.balance.toFixed(2)}`;
+    }
+}
+
+function handlePositionClosed(data) {
+    // Update strategy card with new balance and P&L
+    const strategyName = data.strategy;
+
+    if (data.balance !== undefined) {
+        const balanceElement = document.getElementById(`${strategyName}-balance`);
+        if (balanceElement) balanceElement.textContent = `$${data.balance.toFixed(2)}`;
+    }
+
+    if (data.net_pnl !== undefined) {
+        // Calculate total P&L (this is the net from this trade)
+        // We'll refresh the full status to get accurate total P&L
+        fetch('/api/strategies')
+            .then(response => response.json())
+            .then(strategies => {
+                if (strategies[strategyName]) {
+                    const status = strategies[strategyName];
+                    const pnlElement = document.getElementById(`${strategyName}-pnl`);
+                    if (pnlElement && status.total_profit_loss !== undefined) {
+                        const pnl = status.total_profit_loss;
+                        pnlElement.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                        pnlElement.style.color = pnl >= 0 ? 'var(--color-up)' : 'var(--color-down)';
+                    }
+                }
+            })
+            .catch(error => console.error('Error updating P&L:', error));
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
