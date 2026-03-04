@@ -4,6 +4,7 @@ Flask Web Application for BTC Trading Dashboard
 import os
 import threading
 import uuid
+from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
@@ -15,7 +16,11 @@ from trading.backtester import Backtester
 from data.price_fetcher import get_price_fetcher
 from data.history_manager import get_history_manager
 from data.activity_manager import get_activity_manager
-from config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG
+from config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, LOGS_DIR, LOG_MAX_DAYS
+from utils.logger import get_logger
+
+# Initialize logger
+logger = get_logger('web')
 
 # Initialize Flask app
 app = Flask(__name__,
@@ -33,6 +38,8 @@ backtest_jobs = {}
 backtest_lock = threading.Lock()
 history_updater_running = False
 history_updater_thread = None
+log_cleaner_running = False
+log_cleaner_thread = None
 
 
 def strategy_event_callback(event_type, data):
@@ -176,7 +183,74 @@ def stop_history_updater():
 
     if history_updater_running:
         history_updater_running = False
-        print("History updater stopping...")
+        logger.info("History updater stopping...")
+
+
+def log_cleaner():
+    """Background thread that cleans up old log files"""
+    global log_cleaner_running
+    import time
+    from datetime import datetime, timedelta
+
+    logger.info("Log cleaner thread started")
+
+    while log_cleaner_running:
+        try:
+            # Run cleanup once per day
+            cutoff_date = datetime.now() - timedelta(days=LOG_MAX_DAYS)
+
+            # Get all log files
+            if os.path.exists(LOGS_DIR):
+                deleted_count = 0
+                for filename in os.listdir(LOGS_DIR):
+                    if filename.startswith("all-") and filename.endswith(".log"):
+                        filepath = os.path.join(LOGS_DIR, filename)
+
+                        # Get file modification time
+                        file_mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
+
+                        # Delete if older than cutoff
+                        if file_mtime < cutoff_date:
+                            try:
+                                os.remove(filepath)
+                                deleted_count += 1
+                                logger.info(f"Deleted old log file: {filename}")
+                            except Exception as e:
+                                logger.error(f"Error deleting log file {filename}: {e}")
+
+                if deleted_count > 0:
+                    logger.info(f"Cleaned up {deleted_count} old log files")
+
+            # Sleep for 24 hours (86400 seconds)
+            time.sleep(86400)
+
+        except Exception as e:
+            logger.error(f"Error in log cleaner: {e}")
+            import traceback
+            traceback.print_exc()
+            time.sleep(3600)  # Wait 1 hour on error
+
+    logger.info("Log cleaner thread stopped")
+
+
+def start_log_cleaner():
+    """Start the log cleaner background thread"""
+    global log_cleaner_running, log_cleaner_thread
+
+    if not log_cleaner_running:
+        log_cleaner_running = True
+        log_cleaner_thread = threading.Thread(target=log_cleaner, daemon=True)
+        log_cleaner_thread.start()
+        logger.info("Log cleaner started")
+
+
+def stop_log_cleaner():
+    """Stop the log cleaner background thread"""
+    global log_cleaner_running
+
+    if log_cleaner_running:
+        log_cleaner_running = False
+        logger.info("Log cleaner stopping...")
 
 
 def initialize_strategies():
@@ -189,8 +263,9 @@ def initialize_strategies():
     strategy_runners['pattern'] = StrategyRunner(pattern_strategy, strategy_event_callback)
     strategy_runners['random'] = StrategyRunner(random_strategy, strategy_event_callback)
 
-    # Start history updater
+    # Start background threads
     start_history_updater()
+    start_log_cleaner()
 
 
 # ─────────────────────────────────────────────

@@ -9,12 +9,15 @@ let priceUpdateInterval = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    initializeTheme();
     initializeSocket();
     initializePriceChart();
     loadInitialData();
     setupEventListeners();
     setupBacktestListeners();
     startPriceUpdates();
+    startClock();
+    setupThemeToggle();
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -89,6 +92,101 @@ function updateConnectionStatus(connected) {
         badge.textContent = 'Disconnected';
         badge.className = 'badge bg-danger disconnected';
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 24-HOUR CLOCK
+// ═══════════════════════════════════════════════════════════════
+
+function startClock() {
+    updateClock();
+    setInterval(updateClock, 1000);
+}
+
+function updateClock() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('current-time').textContent = `${hours}:${minutes}:${seconds}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// THEME MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    applyTheme(savedTheme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeIcon(theme);
+
+    // Update chart if it exists
+    if (priceChart) {
+        updateChartTheme(theme);
+    }
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.getElementById('theme-icon');
+    if (icon) {
+        icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+    }
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    applyTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+}
+
+function setupThemeToggle() {
+    const toggleButton = document.getElementById('theme-toggle');
+    if (toggleButton) {
+        toggleButton.addEventListener('click', toggleTheme);
+    }
+}
+
+function updateChartTheme(theme) {
+    if (!priceChart) return;
+
+    const isDark = theme === 'dark';
+    const ctx = document.getElementById('priceChart').getContext('2d');
+
+    // Create new gradient based on theme
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    if (isDark) {
+        gradient.addColorStop(0, 'rgba(0, 212, 170, 0.4)');
+        gradient.addColorStop(0.5, 'rgba(0, 212, 170, 0.1)');
+        gradient.addColorStop(1, 'rgba(0, 212, 170, 0)');
+    } else {
+        gradient.addColorStop(0, 'rgba(0, 212, 170, 0.3)');
+        gradient.addColorStop(0.5, 'rgba(0, 212, 170, 0.08)');
+        gradient.addColorStop(1, 'rgba(0, 212, 170, 0)');
+    }
+
+    // Update chart colors
+    priceChart.data.datasets[0].backgroundColor = gradient;
+    priceChart.data.datasets[0].borderColor = '#00d4aa';
+
+    priceChart.options.scales.x.grid.color = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    priceChart.options.scales.x.grid.borderColor = isDark ? '#2d3748' : '#dee2e6';
+    priceChart.options.scales.x.ticks.color = isDark ? '#6c757d' : '#495057';
+
+    priceChart.options.scales.y.grid.color = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    priceChart.options.scales.y.grid.borderColor = isDark ? '#2d3748' : '#dee2e6';
+    priceChart.options.scales.y.ticks.color = isDark ? '#a0a0a0' : '#495057';
+
+    priceChart.options.plugins.tooltip.backgroundColor = isDark ? 'rgba(30, 35, 48, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+    priceChart.options.plugins.tooltip.titleColor = isDark ? '#a0a0a0' : '#495057';
+    priceChart.options.plugins.tooltip.bodyColor = isDark ? '#ffffff' : '#212529';
+    priceChart.options.plugins.tooltip.borderColor = isDark ? '#2d3748' : '#dee2e6';
+
+    priceChart.update();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -235,6 +333,13 @@ function animateNumberChange(element, targetPrice) {
 
 function initializePriceChart() {
     const ctx = document.getElementById('priceChart').getContext('2d');
+
+    // Create gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(0, 212, 170, 0.4)');
+    gradient.addColorStop(0.5, 'rgba(0, 212, 170, 0.1)');
+    gradient.addColorStop(1, 'rgba(0, 212, 170, 0)');
+
     priceChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -242,26 +347,78 @@ function initializePriceChart() {
             datasets: [{
                 label: 'BTC Price',
                 data: [],
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                tension: 0.1,
-                fill: true
+                borderColor: '#00d4aa',
+                backgroundColor: gradient,
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: '#00d4aa',
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 2
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(30, 35, 48, 0.95)',
+                    titleColor: '#a0a0a0',
+                    bodyColor: '#ffffff',
+                    borderColor: '#2d3748',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
+                        label: function(context) {
+                            return '$' + context.parsed.y.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+                    }
                 }
             },
             scales: {
-                y: {
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)',
+                        borderColor: '#2d3748'
+                    },
                     ticks: {
+                        color: '#6c757d',
+                        maxRotation: 0,
+                        autoSkipPadding: 20
+                    }
+                },
+                y: {
+                    position: 'right',
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)',
+                        borderColor: '#2d3748'
+                    },
+                    ticks: {
+                        color: '#a0a0a0',
                         callback: function(value) {
-                            return '$' + value.toLocaleString();
-                        }
+                            return '$' + value.toLocaleString('en-US', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0
+                            });
+                        },
+                        padding: 10
                     }
                 }
             }
@@ -292,7 +449,6 @@ function updateStrategiesDisplay(strategies) {
     for (const [name, status] of Object.entries(strategies)) {
         updateStrategyCard(name, status);
     }
-    updateComparison(strategies);
 }
 
 function updateStrategyCard(name, status) {
@@ -370,44 +526,6 @@ function updateStrategyStats(strategyName, stats, predictionsCount) {
         const totalElement = document.getElementById(`${strategyName}-total`);
         totalElement.textContent = predictionsCount;
     }
-
-    // Update comparison section
-    updateComparisonForStrategy(strategyName, stats, predictionsCount);
-}
-
-function updateComparison(strategies) {
-    const pattern = strategies.pattern;
-    const random = strategies.random;
-
-    if (pattern && pattern.performance) {
-        document.getElementById('comp-pattern-wr').textContent =
-            (pattern.performance.final_win_rate * 100).toFixed(1) + '%';
-        document.getElementById('comp-pattern-total').textContent =
-            pattern.predictions_count;
-    }
-
-    if (random && random.performance) {
-        document.getElementById('comp-random-wr').textContent =
-            (random.performance.final_win_rate * 100).toFixed(1) + '%';
-        document.getElementById('comp-random-total').textContent =
-            random.predictions_count;
-    }
-}
-
-function updateComparisonForStrategy(strategyName, stats, predictionsCount) {
-    if (stats && stats.final_win_rate !== undefined) {
-        const wrElement = document.getElementById(`comp-${strategyName}-wr`);
-        if (wrElement) {
-            wrElement.textContent = (stats.final_win_rate * 100).toFixed(1) + '%';
-        }
-    }
-
-    if (predictionsCount !== undefined) {
-        const totalElement = document.getElementById(`comp-${strategyName}-total`);
-        if (totalElement) {
-            totalElement.textContent = predictionsCount;
-        }
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -439,13 +557,12 @@ function addActivityItemToFeed(item) {
     const div = document.createElement('div');
     div.className = `activity-item ${item.type}`;
 
-    // Format timestamp
+    // Format timestamp in 24-hour format
     const date = new Date(item.timestamp);
-    const time = date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const time = `${hours}:${minutes}:${seconds}`;
 
     // Format message with strategy if present
     const message = item.strategy
