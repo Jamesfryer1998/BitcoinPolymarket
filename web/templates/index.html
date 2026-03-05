@@ -23,7 +23,11 @@
             <span class="navbar-brand mb-0 h1">
                 <i class="bi bi-graph-up"></i> BTC 5-Min Trading Dashboard
             </span>
-            <span class="text-white position-absolute start-50 translate-middle-x" id="current-time" style="font-family: 'Courier New', monospace; font-size: 1.8rem; font-weight: 600;">--:--:--</span>
+            <div class="d-flex align-items-center gap-3 position-absolute start-50 translate-middle-x">
+                <span id="header-price" style="font-family: 'Courier New', monospace; font-size: 1.4rem; font-weight: 700; color: var(--text-primary);">$--,---</span>
+                <span class="badge" id="header-price-change" style="font-size: 0.9rem;">--%</span>
+                <span class="text-white" id="current-time" style="font-family: 'Courier New', monospace; font-size: 1.4rem; font-weight: 600; margin-left: 1rem;">--:--:--</span>
+            </div>
             <div class="d-flex align-items-center gap-3">
                 <button id="theme-toggle" class="btn btn-sm" title="Toggle theme">
                     <span id="theme-icon">🌙</span>
@@ -34,19 +38,6 @@
     </nav>
 
     <div class="container-fluid mt-4">
-        <!-- Current Price Display -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card bg-dark text-white">
-                    <div class="card-body text-center">
-                        <h2 class="mb-0">Current BTC Price</h2>
-                        <h1 class="display-3 fw-bold" id="current-price">$--,---</h1>
-                        <span class="badge" id="price-change">--%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Tabs -->
         <ul class="nav nav-tabs" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -71,7 +62,27 @@
                     <div class="col-12 mb-4">
                         <div class="card">
                             <div class="card-header">
-                                <h5>Historical Price (Last 100 Periods)</h5>
+                                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                    <h5 class="mb-0">Historical Price (Last 100 Periods)</h5>
+                                    <div class="d-flex align-items-center flex-wrap gap-2" style="font-size: 0.85rem;">
+                                        <span class="legend-item">
+                                            <span class="legend-marker triangle-up-filled"></span>
+                                            <span class="legend-text">UP Win</span>
+                                        </span>
+                                        <span class="legend-item">
+                                            <span class="legend-marker triangle-up-hollow"></span>
+                                            <span class="legend-text">UP Loss</span>
+                                        </span>
+                                        <span class="legend-item">
+                                            <span class="legend-marker triangle-down-filled"></span>
+                                            <span class="legend-text">DOWN Win</span>
+                                        </span>
+                                        <span class="legend-item">
+                                            <span class="legend-marker triangle-down-hollow"></span>
+                                            <span class="legend-text">DOWN Loss</span>
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <canvas id="priceChart"></canvas>
@@ -93,27 +104,53 @@
                             </div>
                             <div class="card-body">
                                 <div class="row mb-3">
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="stat-box">
-                                            <div class="stat-label">Current Position</div>
+                                            <div class="stat-label">Position</div>
                                             <div class="stat-value" id="pattern-position">-</div>
                                         </div>
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="stat-box">
-                                            <div class="stat-label">Final Win Rate</div>
-                                            <div class="stat-value" id="pattern-win-rate">--%</div>
+                                            <div class="stat-label">UP Price</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="pattern-up-price">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">DOWN Price</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="pattern-down-price">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Balance</div>
+                                            <div class="stat-value" style="font-size: 1.3rem; color: var(--text-primary);" id="pattern-balance">$1000</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">P&L</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="pattern-pnl">$0.00</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Win Rate</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="pattern-win-rate">--%</div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-6">
                                         <small class="text-muted">Total Predictions:</small>
-                                        <strong id="pattern-total">0</strong>
+                                        <strong class="strategy-stat-value" id="pattern-total">0</strong>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Last 10:</small>
-                                        <strong id="pattern-last10">--%</strong>
+                                        <strong class="strategy-stat-value" id="pattern-last10">--%</strong>
                                     </div>
                                 </div>
                             </div>
@@ -133,27 +170,53 @@
                             </div>
                             <div class="card-body">
                                 <div class="row mb-3">
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="stat-box">
-                                            <div class="stat-label">Current Position</div>
+                                            <div class="stat-label">Position</div>
                                             <div class="stat-value" id="random-position">-</div>
                                         </div>
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="stat-box">
-                                            <div class="stat-label">Final Win Rate</div>
-                                            <div class="stat-value" id="random-win-rate">--%</div>
+                                            <div class="stat-label">UP Price</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-up-price">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">DOWN Price</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-down-price">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Balance</div>
+                                            <div class="stat-value" style="font-size: 1.3rem; color: var(--text-primary);" id="random-balance">$1000</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">P&L</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-pnl">$0.00</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <div class="stat-label">Win Rate</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-win-rate">--%</div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-6">
                                         <small class="text-muted">Total Predictions:</small>
-                                        <strong id="random-total">0</strong>
+                                        <strong class="strategy-stat-value" id="random-total">0</strong>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Last 10:</small>
-                                        <strong id="random-last10">--%</strong>
+                                        <strong class="strategy-stat-value" id="random-last10">--%</strong>
                                     </div>
                                 </div>
                             </div>
@@ -169,6 +232,43 @@
                             <div class="card-body">
                                 <div id="activity-feed" class="activity-feed">
                                     <div class="text-muted text-center">No activity yet...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trading Configuration -->
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Trading Configuration</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="bet-amount" class="form-label">Bet Amount ($)</label>
+                                    <input type="number" class="form-control" id="bet-amount" value="10" min="1" step="1">
+                                    <small class="text-muted">Amount to bet on each trade</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="starting-capital" class="form-label">Starting Capital ($)</label>
+                                    <input type="number" class="form-control" id="starting-capital" value="1000" min="100" step="100">
+                                    <small class="text-muted">Initial balance for each strategy</small>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-primary" id="update-config-btn">
+                                        <i class="bi bi-check-circle"></i> Update Configuration
+                                    </button>
+                                    <button class="btn btn-danger" id="reset-trading-btn">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Reset All Balances & P/L
+                                    </button>
+                                </div>
+
+                                <hr class="my-3">
+
+                                <div class="alert alert-info" style="font-size: 0.85rem; margin-bottom: 0;">
+                                    <strong>Note:</strong> Updating configuration will apply to new trades. Reset will clear all trades and restore starting capital for both strategies.
                                 </div>
                             </div>
                         </div>

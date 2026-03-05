@@ -85,40 +85,28 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Current Price Display
+   Header Price Display
    ═══════════════════════════════════════════════════════════════ */
 
-#current-price {
-    font-size: 4rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+#header-price {
     transition: color 0.3s ease-out;
     font-variant-numeric: tabular-nums;
-    color: var(--text-primary);
 }
 
-#current-price.price-up {
+#header-price.price-up {
     color: var(--color-up) !important;
 }
 
-#current-price.price-down {
+#header-price.price-down {
     color: var(--color-down) !important;
 }
 
-#price-change {
-    font-size: 1.3rem;
-    font-weight: 600;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    transition: all 0.3s;
-}
-
-#price-change.positive {
+#header-price-change.positive {
     background-color: var(--color-up) !important;
     color: #000 !important;
 }
 
-#price-change.negative {
+#header-price-change.negative {
     background-color: var(--color-down) !important;
     color: #fff !important;
 }
@@ -217,6 +205,10 @@ body {
 
 .stat-value.down {
     color: var(--color-down);
+}
+
+.strategy-stat-value {
+    color: var(--text-primary);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -687,4 +679,141 @@ canvas {
 /* Smooth theme transition */
 * {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Chart Legend
+   ═══════════════════════════════════════════════════════════════ */
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-marker {
+    display: inline-block;
+    position: relative;
+}
+
+.legend-text {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+/* Triangle Markers - UP (pointing up) */
+.triangle-up-filled {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 12px solid var(--color-up);
+}
+
+.triangle-up-hollow {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 12px solid transparent;
+    position: relative;
+}
+
+.triangle-up-hollow::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: -7px;
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 12px solid var(--color-up);
+}
+
+.triangle-up-hollow::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: -5px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 8px solid var(--bg-card);
+}
+
+/* Triangle Markers - DOWN (pointing down) */
+.triangle-down-filled {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 12px solid var(--color-down);
+}
+
+.triangle-down-hollow {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 12px solid transparent;
+    position: relative;
+}
+
+.triangle-down-hollow::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    left: -7px;
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 12px solid var(--color-down);
+}
+
+.triangle-down-hollow::after {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: -5px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 8px solid var(--bg-card);
+}
+
+/* Circle Markers - UP */
+.circle-up-filled {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--color-up);
+}
+
+.circle-up-hollow {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--color-up);
+    background-color: transparent;
+}
+
+/* Circle Markers - DOWN */
+.circle-down-filled {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--color-down);
+}
+
+.circle-down-hollow {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--color-down);
+    background-color: transparent;
 }

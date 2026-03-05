@@ -73,3 +73,9 @@ MID_PERIOD_SECONDS = 150  # 2.5 minutes (2:30 mark)
 DEFAULT_BACKTEST_PERIODS = 1000
 MIN_BACKTEST_PERIODS = 100
 MAX_BACKTEST_PERIODS = 2000
+
+# ─────────────────────────────────────────────
+# TRADING SIMULATION CONFIGURATION
+# ─────────────────────────────────────────────
+DEFAULT_BET_AMOUNT = 10.0        # Default bet amount in USD
+DEFAULT_STARTING_CAPITAL = 1000.0  # Default starting capital in USD
