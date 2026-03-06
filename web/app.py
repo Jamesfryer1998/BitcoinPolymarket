@@ -10,13 +10,13 @@ from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 
 from strategies.pattern_strategy import PatternStrategy
-from strategies.random_strategy import RandomStrategy
+from strategies.selective_pattern_strategy import SelectivePatternStrategy
 from trading.strategy_runner import StrategyRunner
 from trading.backtester import Backtester
 from data.price_fetcher import get_price_fetcher
 from data.history_manager import get_history_manager
 from data.activity_manager import get_activity_manager
-from config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, LOGS_DIR, LOG_MAX_DAYS
+from config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, LOGS_DIR, LOG_MAX_DAYS, PERFORMANCE_FILE_SELECTIVE_PATTERN
 from utils.logger import get_logger
 
 # Initialize logger
@@ -84,6 +84,16 @@ def strategy_event_callback(event_type, data):
         else:
             message = f"Mid-check: Position {data['old_position']} confirmed"
             activity_manager.add_item('info', message, strategy)
+    elif event_type == 'trade_skipped':
+        score = data.get('score', 0)
+        reason = data.get('reason', 'Insufficient confidence')
+        message = f"Trade SKIPPED (Score: {score:+d}) - {reason}"
+        activity_manager.add_item('warning', message, strategy)
+    elif event_type == 'strategy_waiting':
+        current = data.get('current_periods', 0)
+        required = data.get('required_periods', 20)
+        message = f"Waiting for data: {current}/{required} periods"
+        activity_manager.add_item('info', message, strategy)
     elif event_type == 'backfill_complete':
         periods = data.get('periods_added', 0)
         message = f"Backfilled {periods} historical periods from Binance"
@@ -272,10 +282,10 @@ def initialize_strategies():
     global strategy_runners
 
     pattern_strategy = PatternStrategy()
-    random_strategy = RandomStrategy()
+    selective_pattern_strategy = SelectivePatternStrategy()
 
     strategy_runners['pattern'] = StrategyRunner(pattern_strategy, strategy_event_callback)
-    strategy_runners['random'] = StrategyRunner(random_strategy, strategy_event_callback)
+    strategy_runners['selective_pattern'] = StrategyRunner(selective_pattern_strategy, strategy_event_callback)
 
     # Start background threads
     start_history_updater()
@@ -476,6 +486,99 @@ def reset_trading():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/system/reset', methods=['POST'])
+def system_reset():
+    """Reset entire system by clearing in-memory data and deleting all JSON storage files"""
+    try:
+        import glob
+
+        logger.info("Starting full system reset...")
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 1: Clear all in-memory data
+        # ═══════════════════════════════════════════════════════════════
+
+        # Clear history manager
+        history_manager = get_history_manager()
+        history_manager.clear()
+        logger.info("Cleared history manager")
+
+        # Clear activity manager
+        activity_manager = get_activity_manager()
+        activity_manager.clear()
+        logger.info("Cleared activity manager")
+
+        # Reset all strategy runners (trading engines and trade storage)
+        for name, runner in strategy_runners.items():
+            # Reset trading engine (balances, P&L)
+            runner.trading_engine.reset()
+
+            # Clear trade storage
+            runner.trade_storage.clear_history()
+
+            # Clear current trade IDs
+            runner.current_trade_ids = []
+
+            logger.info(f"Reset strategy runner: {name}")
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 2: Delete all JSON files in data/storage
+        # ═══════════════════════════════════════════════════════════════
+
+        storage_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'storage')
+        json_files = glob.glob(os.path.join(storage_dir, '*.json'))
+
+        deleted_files = []
+        errors = []
+
+        # Delete each JSON file
+        for filepath in json_files:
+            filename = os.path.basename(filepath)
+            # Skip README.md if it exists
+            if filename == 'README.md':
+                continue
+
+            try:
+                os.remove(filepath)
+                deleted_files.append(filename)
+                logger.info(f"Deleted storage file: {filename}")
+            except Exception as e:
+                errors.append(f"{filename}: {str(e)}")
+                logger.error(f"Error deleting {filename}: {e}")
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 3: Log and notify
+        # ═══════════════════════════════════════════════════════════════
+
+        logger.info(f"System reset completed. Cleared in-memory data and deleted {len(deleted_files)} files.")
+
+        if errors:
+            return jsonify({
+                "status": "partial",
+                "message": f"Reset in-memory data and deleted {len(deleted_files)} files with {len(errors)} errors",
+                "deleted": deleted_files,
+                "errors": errors
+            })
+
+        # Emit socket event to all clients to refresh
+        socketio.emit('system_reset', {
+            "message": "System has been reset",
+            "deleted_files": len(deleted_files)
+        })
+
+        return jsonify({
+            "status": "success",
+            "message": f"System reset successful. Cleared all data and deleted {len(deleted_files)} storage files.",
+            "deleted": deleted_files
+        })
+
+    except Exception as e:
+        logger.error(f"Error during system reset: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/backtest/run', methods=['POST'])
 def run_backtest():
     """Run a backtest"""
@@ -485,7 +588,7 @@ def run_backtest():
         periods = data.get('periods', 1000)
 
         # Validate inputs
-        if strategy_name not in ['pattern', 'random', 'both']:
+        if strategy_name not in ['pattern', 'selective_pattern', 'both']:
             return jsonify({"error": "Invalid strategy"}), 400
 
         if not isinstance(periods, int) or periods < 100 or periods > 2000:
@@ -527,12 +630,12 @@ def _run_backtest_job(job_id, strategy_name, periods):
         if strategy_name == 'both':
             # Run both strategies
             pattern_results = _run_single_backtest('pattern', periods, job_id)
-            random_results = _run_single_backtest('random', periods, job_id)
+            selective_pattern_results = _run_single_backtest('selective_pattern', periods, job_id)
 
             results = {
                 "pattern": pattern_results,
-                "random": random_results,
-                "comparison": _compare_backtest_results(pattern_results, random_results)
+                "selective_pattern": selective_pattern_results,
+                "comparison": _compare_backtest_results(pattern_results, selective_pattern_results)
             }
         else:
             results = _run_single_backtest(strategy_name, periods, job_id)
@@ -563,8 +666,8 @@ def _run_single_backtest(strategy_name, periods, job_id):
     # Create strategy
     if strategy_name == 'pattern':
         strategy = PatternStrategy()
-    elif strategy_name == 'random':
-        strategy = RandomStrategy()
+    elif strategy_name == 'selective_pattern':
+        strategy = SelectivePatternStrategy()
     else:
         raise ValueError(f"Unknown strategy: {strategy_name}")
 

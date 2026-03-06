@@ -6,7 +6,7 @@ A Bitcoin trading strategy system for Polymarket's 5-minute BTC markets with liv
 
 This project implements two trading strategies for Polymarket's BTC 5-minute markets:
 - **Pattern-Based Strategy**: Analyzes historical price patterns to make predictions
-- **Random Strategy**: Makes random BUY/SELL decisions (baseline for comparison)
+- **Selective Pattern Strategy**: Enhanced pattern strategy that trades only high-confidence setups with volatility filtering and momentum acceleration
 
 ## Features
 
@@ -84,8 +84,8 @@ python run_web.py
 # Live trading with pattern strategy (default)
 python polymarket_btc_strategy.py
 
-# Live trading with random strategy
-python polymarket_btc_strategy.py --strategy random
+# Live trading with selective pattern strategy
+python polymarket_btc_strategy.py --strategy selective_pattern
 ```
 
 ### CLI - Backtesting
@@ -97,15 +97,15 @@ python backtest.py
 # Backtest pattern strategy with custom period count
 python backtest.py --periods 500
 
-# Backtest random strategy
-python backtest.py --strategy random --periods 1000
+# Backtest selective pattern strategy
+python backtest.py --strategy selective_pattern --periods 1000
 
 # Backtest with custom output file
 python backtest.py --strategy pattern --output pattern_results.json
 
 # Compare both strategies
 python backtest.py --strategy pattern --output pattern_results.json
-python backtest.py --strategy random --output random_results.json
+python backtest.py --strategy selective_pattern --output selective_pattern_results.json
 ```
 
 ## Strategy Details
@@ -123,9 +123,25 @@ Analyzes the last 20-30 periods for statistical patterns including:
 - Makes BUY/SELL decision at 5-minute boundaries
 - Validates at 2:30 mark and may reverse position if pattern doesn't hold
 
-### Random Strategy
+### Selective Pattern Strategy
 
-Pure coin flip strategy that randomly picks BUY or SELL at each boundary. Serves as a baseline to measure if the pattern strategy adds value. Expected win rate: ~50%.
+Enhanced pattern-based strategy designed for higher win rates:
+- **Volatility Filtering**: Skips trades in low-volatility regimes (< $20 moves)
+- **Confidence Threshold**: Only trades when signal strength meets minimum threshold (±3)
+- **Momentum Acceleration**: Detects accelerating trends in recent 6 periods
+- **Streak Reversion**: Applies mean reversion logic for extreme streaks (6+ periods)
+- **Mid-period Confirmation**: Uses historical mid-period patterns to set expectations
+
+The strategy analyzes last 30 periods for:
+- Directional bias (UP/DOWN win rates)
+- Momentum acceleration patterns
+- Streak analysis with mean reversion signals
+- Mid-period behavior patterns
+
+**Decision Making**:
+- Skips low-confidence setups where score < ±3
+- Validates at 2:30 mark and may reverse position
+- More selective than basic pattern strategy, aiming for higher win rate
 
 ## Data Sources
 
@@ -142,7 +158,7 @@ BitcoinPolymarket/
 ├── strategies/                    # Strategy implementations
 │   ├── base_strategy.py          # Abstract base class
 │   ├── pattern_strategy.py       # Pattern-based strategy
-│   └── random_strategy.py        # Random coin flip strategy
+│   └── selective_pattern_strategy.py  # Selective pattern strategy
 │
 ├── data/                          # Data management
 │   ├── price_fetcher.py          # Binance API integration
@@ -168,7 +184,9 @@ BitcoinPolymarket/
 **Generated Files (stored in `data/storage/`):**
 - `btc_5min_history.json` - Historical period data (shared by all strategies)
 - `btc_strategy_performance_pattern.json` - Pattern strategy performance
-- `btc_strategy_performance_random.json` - Random strategy performance
+- `btc_strategy_performance_selective_pattern.json` - Selective pattern strategy performance
+- `trade_history_pattern.json` - Pattern strategy trade history
+- `trade_history_selective_pattern.json` - Selective pattern strategy trade history
 - `activity_feed.json` - Persistent activity feed (last 200 items)
 - `backtest_results.json` - CLI backtest results
 
@@ -179,15 +197,15 @@ BitcoinPolymarket/
 ### polymarket_btc_strategy.py
 
 ```
---strategy {pattern,random}   Strategy to use (default: pattern)
+--strategy {pattern,selective_pattern}   Strategy to use (default: pattern)
 ```
 
 ### backtest.py
 
 ```
---periods N                   Number of 5-min periods to backtest (default: 1000)
---output FILE                 Output JSON file path (default: backtest_results.json)
---strategy {pattern,random}   Strategy to use (default: pattern)
+--periods N                              Number of 5-min periods to backtest (default: 1000)
+--output FILE                            Output JSON file path (default: backtest_results.json)
+--strategy {pattern,selective_pattern}   Strategy to use (default: pattern)
 ```
 
 ## Performance Metrics
@@ -247,291 +265,16 @@ Both scripts track:
 - Requires continuous internet connection for Binance API
 - System time should be reasonably accurate for proper boundary synchronization
 - First run will auto-backfill 30 periods of historical data
-- Random strategy has no mid-period expectations (won't reverse positions)
+- Selective Pattern strategy may skip trades when confidence is low (score < ±3) or volatility is too low
 - Web dashboard runs on `localhost:8000` by default (configurable in `config.py`)
 - Both strategies can run simultaneously in the web dashboard
 - CLI tools remain fully functional for headless/automated trading
 
 
 
-
-
-# TASK: Implement UI Fixes + Realistic Profit & Loss Simulation Using Polymarket API
-
-You are working on a Bitcoin 5-minute Up/Down trading dashboard that integrates with the Polymarket Gamma API.
-
-Your task is to implement the following improvements and features.
-
----
-
-# 1️⃣ UI / DESIGN CHANGES
-
-## A. Light / Dark Mode Compliance
-
-* Fix the “Total Predictions: X | Last 10: X” text inside strategy sections.
-* Ensure text colors dynamically adapt to light/dark mode.
-* Do not hardcode colors.
-* Use theme variables or inherited styling.
-
----
-
-## B. Move BTC Price Display
-
-* Remove the large BTC price widget.
-* Move BTC price to the top header of the page.
-* Display in this format:
-
-```
-{btc_price}  {percent_change}%  {current_time}
-```
-
-Example:
-
-```
-$67,842.12   +1.24%   10:37:22
-```
-
-* This should update live.
-* Must not require page refresh.
-
----
-
-## C. Strategy Toggle Fix (CRITICAL)
-
-Current issue:
-
-* Toggle always shows "Stopped"
-* 5 second delay before activity log reflects stop
-* Risk of multiple threads running
-
-Fix requirements:
-
-* Toggle must instantly reflect Running/Stopped state.
-* Activity log must update immediately when stopping.
-* Ensure proper thread cleanup:
-
-  * No more than ONE thread per strategy at any time.
-  * If stopping, fully terminate the running thread before allowing restart.
-  * Use safe thread lifecycle handling (event flags or async cancellation).
-  * Avoid race conditions.
-
----
-
-# 2️⃣ PROFIT & LOSS SIMULATION (Polymarket Integration)
-
-We must simulate realistic trading using live Polymarket prices.
-
-Platform: Polymarket Gamma API
-Markets: BTC 5-minute markets (slug format: btc-updown-5m-{unix_timestamp})
-
----
-
-## A. Fetch Up/Down Token IDs
-
-I already created a script in `test.py` that:
-
-* Takes a market URL
-* Extracts Up and Down `clobTokenIds`
-
-You must:
-
-* Move this logic into a reusable module (e.g., services/polymarket.py)
-* Delete `test.py`
-* Use that module to dynamically fetch tokens every 5-minute boundary.
-
----
-
-## B. Boundary Logic
-
-Each 5-minute cycle:
-
-Example:
-Bitcoin Up or Down - March 4, 5:50-5:55AM ET
-Slug: btc-updown-5m-1772621400
-
-Implementation requirements:
-
-1. Detect current 5-minute UNIX boundary.
-
-2. At:
-
-   * 0:00 of boundary → fetch Up/Down prices.
-   * 2:30 (midpoint) → fetch prices again.
-
-3. Use Polymarket API to fetch:
-
-   * Up price
-   * Down price
-   * clobTokenIds
-
----
-
-## C. Pricing Configuration Section
-
-Add a config panel near Activity Monitor:
-
-Inputs:
-
-* Bet Amount (default $10)
-* Starting Capital (user editable)
-
-Simulated Account:
-
-* Track balance
-* Track open trades
-* Track realized P&L
-* Track unrealized P&L
-
----
-
-## D. Strategy Section Enhancements
-
-Each strategy panel must show:
-
-* Current Up Price
-* Current Down Price
-* Balance
-* P&L (realized + unrealized)
-
-Must update live without refresh.
-
----
-
-## E. Trade Simulation Logic
-
-At 5-minute boundary start:
-
-* Strategy decides Up or Down.
-* Place simulated bet using current price.
-* Log activity:
-
-  * "Bet placed"
-  * Amount
-  * Direction
-  * Entry price
-  * Potential profit
-
-At midpoint (2.5 minutes):
-
-* Re-fetch prices.
-* If reversal condition is met:
-
-  * Place additional bet in opposite direction.
-  * Keep original bet open.
-* Log the additional bet.
-
-At 5-minute close:
-
-* Resolve trade.
-* Update capital.
-* Close both midpoint and original trades.
-* Log result.
-
----
-
-# 3️⃣ TRADE STORAGE
-
-When placing a bet:
-
-* Save trade to:
-
-```
-data/storage/trade_history_{strategy_name}.json
-```
-
-Each trade record must include:
-
-* Timestamp (full ISO date)
-* Direction
-* Entry price
-* Exit price
-* Bet amount
-* Profit/Loss
-* Was midpoint bet? (true/false)
-* Result (win/loss)
-
-When boundary closes:
-
-* Update trade record with result.
-
----
-
-# 4️⃣ GRAPH VISUALIZATION
-
-When a trade closes, update the chart.
-
-Display markers:
-
-UP trade:
-
-* ✅ Correct → filled green triangle pointing up
-* ❌ Incorrect → hollow green triangle pointing up
-
-DOWN trade:
-
-* ✅ Correct → filled red triangle pointing down
-* ❌ Incorrect → hollow red triangle pointing down
-
-Graph must update live.
-No page refresh.
-
----
-
-# 5️⃣ ACTIVITY LOG IMPROVEMENTS
-
-Requirements:
-
-* Newest logs at top.
-* Include full Date + Time.
-* Immediate updates (no delay).
-* Add entry when:
-
-  * Strategy starts
-  * Strategy stops
-  * Bet placed
-  * Midpoint bet placed
-  * Trade resolved
-
-Example log:
-
-[2026-03-04 10:50:00] Bet placed - UP - $10 at 0.63 - Potential Profit: $5.87
-[2026-03-04 10:52:30] Midpoint reversal - DOWN - $10 at 0.41
-[2026-03-04 10:55:01] Trade closed - Profit: +$4.20
-
----
-
-# 6️⃣ CRITICAL TECH REQUIREMENTS
-
-* No page refreshes for updates.
-* No duplicate strategy threads.
-* No race conditions.
-* Use clean modular structure:
-
-  * services/polymarket.py
-  * services/trading_engine.py
-  * services/storage.py
-* Thread-safe state management.
-* Clean logging system.
-* Production-grade error handling.
-
----
-
-# END GOAL
-
-A fully live-updating BTC 5-minute trading simulator with:
-
-✔ Proper UI
-✔ Correct thread handling
-✔ Live Polymarket pricing
-✔ Midpoint reversal logic
-✔ Accurate P&L tracking
-✔ Trade storage
-✔ Live graph markers
-✔ Real-time activity log
-
-Implement cleanly and safely.
-
-
-
-
 Add this profit and loss logic to the backtesting too.
+
+
+The current btc price that we frequenctly update is supplied by binance i think? It slighly differs from that of polymarksts. It gets its btc price from chainlink I believe. Try and get the current price as frequenclty as we do from chainlink btc price so we closely match polymarkets price. When loading the historical prices when we have no data, that is fine to load from binance like we do already. 
+
+Also do we actually use the current btc price in our decision?

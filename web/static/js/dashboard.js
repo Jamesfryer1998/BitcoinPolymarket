@@ -6,6 +6,7 @@ let priceChart = null;
 let lastPrice = null;
 let currentBacktestJob = null;
 let priceUpdateInterval = null;
+let historyData = []; // Store full history for tooltips
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
     startPriceUpdates();
     startClock();
     setupThemeToggle();
+    initSystemReset();
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -89,6 +91,14 @@ function initializeSocket() {
 
     socket.on('position_closed', function(data) {
         handlePositionClosed(data);
+    });
+
+    socket.on('trade_skipped', function(data) {
+        handleTradeSkipped(data);
+    });
+
+    socket.on('strategy_waiting', function(data) {
+        handleStrategyWaiting(data);
     });
 }
 
@@ -261,6 +271,16 @@ function startPriceUpdates() {
             })
             .catch(error => console.error('Error fetching price:', error));
     }, 2000);
+
+    // Also refresh strategy status every 5 seconds to ensure all fields are up to date
+    setInterval(function() {
+        fetch('/api/strategies')
+            .then(response => response.json())
+            .then(strategies => {
+                updateStrategiesDisplay(strategies);
+            })
+            .catch(error => console.error('Error fetching strategies:', error));
+    }, 5000);
 }
 
 function updateCurrentPrice(price) {
@@ -414,9 +434,9 @@ function initializePriceChart() {
                 showLine: false,
                 order: 1
             },
-            // Random Strategy Trade Markers
+            // Selective Pattern Strategy Trade Markers
             {
-                label: 'Random UP ✓',
+                label: 'Selective Pattern UP ✓',
                 data: [],
                 borderColor: '#00d4aa',
                 backgroundColor: '#00d4aa',
@@ -426,7 +446,7 @@ function initializePriceChart() {
                 order: 1
             },
             {
-                label: 'Random UP ✗',
+                label: 'Selective Pattern UP ✗',
                 data: [],
                 borderColor: '#00d4aa',
                 backgroundColor: 'transparent',
@@ -437,7 +457,7 @@ function initializePriceChart() {
                 order: 1
             },
             {
-                label: 'Random DOWN ✓',
+                label: 'Selective Pattern DOWN ✓',
                 data: [],
                 borderColor: '#ff4976',
                 backgroundColor: '#ff4976',
@@ -447,7 +467,7 @@ function initializePriceChart() {
                 order: 1
             },
             {
-                label: 'Random DOWN ✗',
+                label: 'Selective Pattern DOWN ✗',
                 data: [],
                 borderColor: '#ff4976',
                 backgroundColor: 'transparent',
@@ -483,10 +503,36 @@ function initializePriceChart() {
                             return context[0].label;
                         },
                         label: function(context) {
-                            return '$' + context.parsed.y.toLocaleString('en-US', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                            });
+                            const datasetIndex = context.datasetIndex;
+                            const index = context.dataIndex;
+
+                            // Dataset 0 is the main price line - show start/end prices
+                            if (datasetIndex === 0 && historyData[index]) {
+                                const period = historyData[index];
+                                const startPrice = period.start_price.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                                const endPrice = period.end_price.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                                return [
+                                    `Start: $${startPrice}`,
+                                    `End: $${endPrice}`
+                                ];
+                            }
+
+                            // For trade markers (datasets 1-8), show just the price
+                            if (datasetIndex >= 1 && context.parsed.y !== null) {
+                                const price = '$' + context.parsed.y.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                                return price;
+                            }
+
+                            return '';
                         }
                     }
                 }
@@ -528,6 +574,9 @@ function initializePriceChart() {
 function updatePriceChart(history) {
     if (!priceChart || !history || history.length === 0) return;
 
+    // Store full history for tooltip access
+    historyData = history;
+
     const labels = history.map(h => {
         const date = new Date(h.timestamp);
         return date.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'});
@@ -547,14 +596,14 @@ function loadTradeMarkers() {
     // Load trades for both strategies
     Promise.all([
         fetch('/api/trades/pattern').then(r => r.json()),
-        fetch('/api/trades/random').then(r => r.json())
+        fetch('/api/trades/selective_pattern').then(r => r.json())
     ])
-    .then(([patternData, randomData]) => {
+    .then(([patternData, selectivePatternData]) => {
         const patternTrades = patternData.trades || [];
-        const randomTrades = randomData.trades || [];
+        const selectivePatternTrades = selectivePatternData.trades || [];
 
         updateTradeMarkers('pattern', patternTrades);
-        updateTradeMarkers('random', randomTrades);
+        updateTradeMarkers('selective_pattern', selectivePatternTrades);
 
         priceChart.update();
     })
@@ -570,7 +619,8 @@ function updateTradeMarkers(strategyName, trades) {
     const chartPrices = priceChart.data.datasets[0].data;
 
     // Determine dataset indices based on strategy
-    const baseIndex = strategyName === 'pattern' ? 1 : 5; // Pattern starts at 1, Random at 5
+    const baseIndex = strategyName === 'pattern' ? 1 : 5; // Pattern starts at 1, Selective Pattern at 5
+    const isPatternStrategy = strategyName === 'pattern';
 
     // Initialize arrays for each trade type
     const upCorrect = new Array(chartLabels.length).fill(null);
@@ -585,20 +635,31 @@ function updateTradeMarkers(strategyName, trades) {
 
         const chartIndex = chartLabels.findIndex(label => label === tradeTime);
 
-        if (chartIndex !== -1 && chartPrices[chartIndex] !== undefined) {
-            const price = chartPrices[chartIndex];
+        if (chartIndex !== -1 && historyData[chartIndex]) {
+            const period = historyData[chartIndex];
             const direction = trade.direction;
             const correct = trade.result === 'win';
 
+            // Use different Y positions for different strategies to stack markers
+            // Pattern strategy uses start_price, Selective Pattern uses end_price
+            let markerPrice;
+            if (direction === 'UP') {
+                // UP markers: Pattern at bottom (start), Selective at top (end)
+                markerPrice = isPatternStrategy ? period.start_price : period.end_price;
+            } else {
+                // DOWN markers: Pattern at top (start), Selective at bottom (end)
+                markerPrice = isPatternStrategy ? period.start_price : period.end_price;
+            }
+
             // Place marker in appropriate array
             if (direction === 'UP' && correct) {
-                upCorrect[chartIndex] = price;
+                upCorrect[chartIndex] = markerPrice;
             } else if (direction === 'UP' && !correct) {
-                upIncorrect[chartIndex] = price;
+                upIncorrect[chartIndex] = markerPrice;
             } else if (direction === 'DOWN' && correct) {
-                downCorrect[chartIndex] = price;
+                downCorrect[chartIndex] = markerPrice;
             } else if (direction === 'DOWN' && !correct) {
-                downIncorrect[chartIndex] = price;
+                downIncorrect[chartIndex] = markerPrice;
             }
         }
     });
@@ -698,6 +759,16 @@ function updateStrategyCard(name, status) {
     // Update total predictions
     const totalElement = document.getElementById(`${name}-total`);
     totalElement.textContent = status.predictions_count || 0;
+
+    // Update total trades
+    const tradesElement = document.getElementById(`${name}-trades`);
+    tradesElement.textContent = status.total_trades || 0;
+
+    // Update in trade indicator
+    const inTradeElement = document.getElementById(`${name}-in-trade`);
+    const hasOpenPosition = status.open_positions && status.open_positions > 0;
+    inTradeElement.textContent = hasOpenPosition ? 'Yes' : 'No';
+    inTradeElement.style.color = hasOpenPosition ? 'var(--color-up)' : 'var(--text-muted)';
 
     // Update last 10
     const last10Element = document.getElementById(`${name}-last10`);
@@ -819,11 +890,30 @@ function handleStrategyPrediction(data) {
     };
     addActivityItemToFeed(item, true); // true = prepend to top
 
+    const strategyName = data.strategy;
+
     // Update position in real-time
-    const positionElement = document.getElementById(`${data.strategy}-position`);
+    const positionElement = document.getElementById(`${strategyName}-position`);
     if (positionElement) {
         positionElement.textContent = data.prediction;
         positionElement.className = `stat-value ${data.prediction.toLowerCase()}`;
+    }
+
+    // Update Up/Down prices if available
+    if (data.up_price !== undefined && data.up_price !== null) {
+        const upPriceElement = document.getElementById(`${strategyName}-up-price`);
+        if (upPriceElement) upPriceElement.textContent = data.up_price.toFixed(3);
+    }
+    if (data.down_price !== undefined && data.down_price !== null) {
+        const downPriceElement = document.getElementById(`${strategyName}-down-price`);
+        if (downPriceElement) downPriceElement.textContent = data.down_price.toFixed(3);
+    }
+
+    // Update "In Trade" indicator - after prediction, we should be in a trade
+    const inTradeElement = document.getElementById(`${strategyName}-in-trade`);
+    if (inTradeElement) {
+        inTradeElement.textContent = 'Yes';
+        inTradeElement.style.color = 'var(--color-up)';
     }
 }
 
@@ -841,10 +931,14 @@ function handleStrategyResult(data) {
     };
     addActivityItemToFeed(item, true); // true = prepend to top
 
+    const strategyName = data.strategy;
+
     // Update strategy stats in real-time
     if (data.stats) {
-        updateStrategyStats(data.strategy, data.stats, data.predictions_count);
+        updateStrategyStats(strategyName, data.stats, data.predictions_count);
     }
+
+    // Position should be closed now - "In Trade" will be updated by handlePositionClosed
 }
 
 function handleStrategyStatus(data) {
@@ -856,6 +950,23 @@ function handleStrategyStatus(data) {
         strategy: data.strategy
     };
     addActivityItemToFeed(item, true); // true = prepend to top
+
+    const strategyName = data.strategy;
+
+    // If strategy stopped, clear position and "In Trade" indicator
+    if (data.status === 'stopped') {
+        const positionElement = document.getElementById(`${strategyName}-position`);
+        if (positionElement) {
+            positionElement.textContent = '-';
+            positionElement.className = 'stat-value';
+        }
+
+        const inTradeElement = document.getElementById(`${strategyName}-in-trade`);
+        if (inTradeElement) {
+            inTradeElement.textContent = 'No';
+            inTradeElement.style.color = 'var(--text-muted)';
+        }
+    }
 }
 
 function handleMidPeriodCheck(data) {
@@ -940,16 +1051,60 @@ function handleGapFilled(data) {
     addActivityItemToFeed(item, true); // true = prepend to top
 }
 
+function handleTradeSkipped(data) {
+    // Activity item is already saved by server, just add to feed
+    const strategyName = data.strategy;
+    const score = data.score || 0;
+    const reason = data.reason || 'Insufficient confidence';
+
+    const item = {
+        timestamp: data.timestamp || new Date().toISOString(),
+        type: 'warning',
+        message: `Trade SKIPPED (Score: ${score >= 0 ? '+' : ''}${score}) - ${reason}`,
+        strategy: strategyName
+    };
+    addActivityItemToFeed(item, true); // true = prepend to top
+
+    // Clear position display since no trade was made
+    const positionElement = document.getElementById(`${strategyName}-position`);
+    if (positionElement) {
+        positionElement.textContent = '-';
+        positionElement.className = 'stat-value';
+    }
+
+    // Make sure "In Trade" shows "No"
+    const inTradeElement = document.getElementById(`${strategyName}-in-trade`);
+    if (inTradeElement) {
+        inTradeElement.textContent = 'No';
+        inTradeElement.style.color = 'var(--text-muted)';
+    }
+}
+
+function handleStrategyWaiting(data) {
+    // Activity item is already saved by server, just add to feed
+    const strategyName = data.strategy;
+    const current = data.current_periods || 0;
+    const required = data.required_periods || 20;
+
+    const item = {
+        timestamp: data.timestamp || new Date().toISOString(),
+        type: 'info',
+        message: `Waiting for data: ${current}/${required} periods`,
+        strategy: strategyName
+    };
+    addActivityItemToFeed(item, true); // true = prepend to top
+}
+
 function handleBetPlaced(data) {
     // Update strategy card with new prices and balance
     const strategyName = data.strategy;
 
     // Update prices
-    if (data.up_price) {
+    if (data.up_price !== undefined && data.up_price !== null) {
         const upPriceElement = document.getElementById(`${strategyName}-up-price`);
         if (upPriceElement) upPriceElement.textContent = data.up_price.toFixed(3);
     }
-    if (data.down_price) {
+    if (data.down_price !== undefined && data.down_price !== null) {
         const downPriceElement = document.getElementById(`${strategyName}-down-price`);
         if (downPriceElement) downPriceElement.textContent = data.down_price.toFixed(3);
     }
@@ -959,6 +1114,24 @@ function handleBetPlaced(data) {
         const balanceElement = document.getElementById(`${strategyName}-balance`);
         if (balanceElement) balanceElement.textContent = `$${data.balance.toFixed(2)}`;
     }
+
+    // Update "In Trade" indicator - bet placed means we're in a trade
+    const inTradeElement = document.getElementById(`${strategyName}-in-trade`);
+    if (inTradeElement) {
+        inTradeElement.textContent = 'Yes';
+        inTradeElement.style.color = 'var(--color-up)';
+    }
+
+    // Fetch updated total trades count
+    fetch(`/api/trades/${strategyName}`)
+        .then(response => response.json())
+        .then(tradeData => {
+            const tradesElement = document.getElementById(`${strategyName}-trades`);
+            if (tradesElement) {
+                tradesElement.textContent = tradeData.count || 0;
+            }
+        })
+        .catch(error => console.error('Error fetching trade count:', error));
 
     // Add activity item to feed
     const direction = data.direction;
@@ -986,6 +1159,24 @@ function handlePositionClosed(data) {
         const balanceElement = document.getElementById(`${strategyName}-balance`);
         if (balanceElement) balanceElement.textContent = `$${data.balance.toFixed(2)}`;
     }
+
+    // Update "In Trade" indicator - position is now closed
+    const inTradeElement = document.getElementById(`${strategyName}-in-trade`);
+    if (inTradeElement) {
+        inTradeElement.textContent = 'No';
+        inTradeElement.style.color = 'var(--text-muted)';
+    }
+
+    // Fetch updated total trades count
+    fetch(`/api/trades/${strategyName}`)
+        .then(response => response.json())
+        .then(tradeData => {
+            const tradesElement = document.getElementById(`${strategyName}-trades`);
+            if (tradesElement) {
+                tradesElement.textContent = tradeData.count || 0;
+            }
+        })
+        .catch(error => console.error('Error fetching trade count:', error));
 
     if (data.net_pnl !== undefined) {
         // Calculate total P&L (this is the net from this trade)
@@ -1035,9 +1226,9 @@ function setupEventListeners() {
         toggleStrategy('pattern', this.checked);
     });
 
-    // Random strategy toggle
-    document.getElementById('random-toggle').addEventListener('change', function() {
-        toggleStrategy('random', this.checked);
+    // Selective Pattern strategy toggle
+    document.getElementById('selective_pattern-toggle').addEventListener('change', function() {
+        toggleStrategy('selective_pattern', this.checked);
     });
 }
 
@@ -1235,7 +1426,7 @@ function renderSingleStrategyResults(results) {
 
 function renderComparisonResults(results) {
     const patternStats = results.pattern.stats;
-    const randomStats = results.random.stats;
+    const selectivePatternStats = results.selective_pattern.stats;
     const comparison = results.comparison;
 
     return `
@@ -1243,7 +1434,7 @@ function renderComparisonResults(results) {
             <div class="col-12 mb-3">
                 <div class="alert ${comparison.pattern_better ? 'alert-success' : 'alert-warning'}">
                     ${comparison.pattern_better ? '🎉' : '⚠️'}
-                    <strong>${comparison.pattern_better ? 'Pattern strategy wins!' : 'Random strategy performs better'}</strong>
+                    <strong>${comparison.pattern_better ? 'Pattern strategy wins!' : 'Selective Pattern strategy performs better'}</strong>
                     - ${Math.abs(comparison.difference * 100).toFixed(1)}% difference
                 </div>
             </div>
@@ -1263,16 +1454,16 @@ function renderComparisonResults(results) {
                 </table>
             </div>
             <div class="col-md-6">
-                <h6>Random Strategy</h6>
+                <h6>Selective Pattern Strategy</h6>
                 <div class="result-card mb-3">
                     <div class="result-card-title">Win Rate</div>
-                    <div class="result-card-value">${(randomStats.final_win_rate * 100).toFixed(1)}%</div>
+                    <div class="result-card-value">${(selectivePatternStats.final_win_rate * 100).toFixed(1)}%</div>
                 </div>
                 <table class="table table-sm">
-                    <tr><td>Total Predictions:</td><td>${randomStats.total_predictions}</td></tr>
-                    <tr><td>Initial WR:</td><td>${(randomStats.initial_win_rate * 100).toFixed(1)}%</td></tr>
-                    <tr><td>Reversals:</td><td>${randomStats.reversals_count}</td></tr>
-                    <tr><td>Longest Win Streak:</td><td>${randomStats.longest_win_streak}</td></tr>
+                    <tr><td>Total Predictions:</td><td>${selectivePatternStats.total_predictions}</td></tr>
+                    <tr><td>Initial WR:</td><td>${(selectivePatternStats.initial_win_rate * 100).toFixed(1)}%</td></tr>
+                    <tr><td>Reversals:</td><td>${selectivePatternStats.reversals_count}</td></tr>
+                    <tr><td>Longest Win Streak:</td><td>${selectivePatternStats.longest_win_streak}</td></tr>
                 </table>
             </div>
         </div>
@@ -1395,6 +1586,68 @@ function initTradingConfig() {
             // Re-enable button
             resetTradingBtn.disabled = false;
             resetTradingBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Reset All Balances & P/L';
+        });
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM RESET
+// ═══════════════════════════════════════════════════════════════
+
+function initSystemReset() {
+    const systemResetBtn = document.getElementById('system-reset-btn');
+
+    if (!systemResetBtn) {
+        console.error('System reset button not found');
+        return;
+    }
+
+    systemResetBtn.addEventListener('click', function() {
+        const confirmed = confirm(
+            '⚠️ WARNING: FULL SYSTEM RESET ⚠️\n\n' +
+            'Are you sure you want to reset the ENTIRE system?\n\n' +
+            'This will permanently delete:\n' +
+            '• All historical price data\n' +
+            '• All trade history\n' +
+            '• All activity logs\n' +
+            '• All strategy performance data\n\n' +
+            'This action CANNOT be undone!\n\n' +
+            'Click OK to proceed with the reset, or Cancel to abort.'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        // Disable button during request
+        systemResetBtn.disabled = true;
+        systemResetBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        fetch('/api/system/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('✅ System reset successful!\n\nThe page will now reload.');
+                // Reload the page to show clean state
+                window.location.reload();
+            } else {
+                alert('❌ Error: ' + (data.error || 'Unknown error'));
+                // Re-enable button on error
+                systemResetBtn.disabled = false;
+                systemResetBtn.innerHTML = 'Reset';
+            }
+        })
+        .catch(error => {
+            console.error('Error resetting system:', error);
+            alert('❌ Failed to reset system: ' + error);
+            // Re-enable button on error
+            systemResetBtn.disabled = false;
+            systemResetBtn.innerHTML = 'Reset';
         });
     });
 }

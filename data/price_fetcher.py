@@ -34,12 +34,12 @@ class PriceFetcher:
         except requests.RequestException as e:
             raise Exception(f"Failed to fetch current price: {e}")
 
-    def get_1min_candles(self, limit=150):
+    def get_1min_candles(self, limit=1000):
         """
         Fetch 1-minute candles from Binance.
 
         Args:
-            limit (int): Number of candles to fetch (default: 150 = 30 5-min periods)
+            limit (int): Number of candles to fetch (default: 1000 = 200 5-min periods, Binance API max)
 
         Returns:
             list: List of candle dicts with keys: open_time, open, high, low, close
@@ -74,12 +74,12 @@ class PriceFetcher:
         except requests.RequestException as e:
             raise Exception(f"Failed to fetch 1-min candles: {e}")
 
-    def get_5min_periods(self, num_periods=30):
+    def get_5min_periods(self, num_periods=200):
         """
         Fetch and group 1-minute candles into 5-minute periods aligned to boundaries.
 
         Args:
-            num_periods (int): Number of 5-minute periods to fetch
+            num_periods (int): Number of 5-minute periods to fetch (max ~200 due to Binance 1000 candle limit)
 
         Returns:
             list: List of period dicts with start/mid/end prices and directions
