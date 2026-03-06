@@ -6,6 +6,7 @@ let priceChart = null;
 let lastPrice = null;
 let currentBacktestJob = null;
 let priceUpdateInterval = null;
+let historyData = []; // Store full history for tooltips
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -502,10 +503,36 @@ function initializePriceChart() {
                             return context[0].label;
                         },
                         label: function(context) {
-                            return '$' + context.parsed.y.toLocaleString('en-US', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                            });
+                            const datasetIndex = context.datasetIndex;
+                            const index = context.dataIndex;
+
+                            // Dataset 0 is the main price line - show start/end prices
+                            if (datasetIndex === 0 && historyData[index]) {
+                                const period = historyData[index];
+                                const startPrice = period.start_price.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                                const endPrice = period.end_price.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                                return [
+                                    `Start: $${startPrice}`,
+                                    `End: $${endPrice}`
+                                ];
+                            }
+
+                            // For trade markers (datasets 1-8), show just the price
+                            if (datasetIndex >= 1 && context.parsed.y !== null) {
+                                const price = '$' + context.parsed.y.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                                return price;
+                            }
+
+                            return '';
                         }
                     }
                 }
@@ -546,6 +573,9 @@ function initializePriceChart() {
 
 function updatePriceChart(history) {
     if (!priceChart || !history || history.length === 0) return;
+
+    // Store full history for tooltip access
+    historyData = history;
 
     const labels = history.map(h => {
         const date = new Date(h.timestamp);
@@ -590,6 +620,7 @@ function updateTradeMarkers(strategyName, trades) {
 
     // Determine dataset indices based on strategy
     const baseIndex = strategyName === 'pattern' ? 1 : 5; // Pattern starts at 1, Selective Pattern at 5
+    const isPatternStrategy = strategyName === 'pattern';
 
     // Initialize arrays for each trade type
     const upCorrect = new Array(chartLabels.length).fill(null);
@@ -604,20 +635,31 @@ function updateTradeMarkers(strategyName, trades) {
 
         const chartIndex = chartLabels.findIndex(label => label === tradeTime);
 
-        if (chartIndex !== -1 && chartPrices[chartIndex] !== undefined) {
-            const price = chartPrices[chartIndex];
+        if (chartIndex !== -1 && historyData[chartIndex]) {
+            const period = historyData[chartIndex];
             const direction = trade.direction;
             const correct = trade.result === 'win';
 
+            // Use different Y positions for different strategies to stack markers
+            // Pattern strategy uses start_price, Selective Pattern uses end_price
+            let markerPrice;
+            if (direction === 'UP') {
+                // UP markers: Pattern at bottom (start), Selective at top (end)
+                markerPrice = isPatternStrategy ? period.start_price : period.end_price;
+            } else {
+                // DOWN markers: Pattern at top (start), Selective at bottom (end)
+                markerPrice = isPatternStrategy ? period.start_price : period.end_price;
+            }
+
             // Place marker in appropriate array
             if (direction === 'UP' && correct) {
-                upCorrect[chartIndex] = price;
+                upCorrect[chartIndex] = markerPrice;
             } else if (direction === 'UP' && !correct) {
-                upIncorrect[chartIndex] = price;
+                upIncorrect[chartIndex] = markerPrice;
             } else if (direction === 'DOWN' && correct) {
-                downCorrect[chartIndex] = price;
+                downCorrect[chartIndex] = markerPrice;
             } else if (direction === 'DOWN' && !correct) {
-                downIncorrect[chartIndex] = price;
+                downIncorrect[chartIndex] = markerPrice;
             }
         }
     });
