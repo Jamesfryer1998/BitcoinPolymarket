@@ -29,10 +29,13 @@
                 <span class="text-white" id="current-time" style="font-family: 'Courier New', monospace; font-size: 1.4rem; font-weight: 600; margin-left: 1rem;">--:--:--</span>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <button id="theme-toggle" class="btn btn-sm" title="Toggle theme">
+                <button id="theme-toggle" class="btn btn-sm" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 6px; line-height: 1;" title="Toggle theme">
                     <span id="theme-icon">🌙</span>
                 </button>
                 <span class="badge bg-success" id="connection-status">Connected</span>
+                <button id="system-reset-btn" class="btn btn-sm btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; font-weight: 600; border-radius: 6px; line-height: 1; border: none;" title="Reset entire system">
+                    Reset
+                </button>
             </div>
         </div>
     </nav>
@@ -143,14 +146,25 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row">
+                                <div class="row mb-2">
                                     <div class="col-6">
                                         <small class="text-muted">Total Predictions:</small>
                                         <strong class="strategy-stat-value" id="pattern-total">0</strong>
+                                        <span class="text-muted mx-1">|</span>
+                                        <small class="text-muted">Total Trades:</small>
+                                        <strong class="strategy-stat-value" id="pattern-trades">0</strong>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Last 10:</small>
                                         <strong class="strategy-stat-value" id="pattern-last10">--%</strong>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <small class="text-muted">In Trade:</small>
+                                        <strong class="strategy-stat-value" id="pattern-in-trade">No</strong>
                                     </div>
                                 </div>
                             </div>
@@ -158,13 +172,13 @@
                     </div>
 
                     <div class="col-md-6 mb-4">
-                        <div class="card strategy-card" id="random-card">
+                        <div class="card strategy-card" id="selective_pattern-card">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5>Random Strategy</h5>
+                                <h5>Selective Pattern Strategy</h5>
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="random-toggle">
-                                    <label class="form-check-label" for="random-toggle">
-                                        <span class="status-badge badge bg-secondary" id="random-status">Stopped</span>
+                                    <input class="form-check-input" type="checkbox" id="selective_pattern-toggle">
+                                    <label class="form-check-label" for="selective_pattern-toggle">
+                                        <span class="status-badge badge bg-secondary" id="selective_pattern-status">Stopped</span>
                                     </label>
                                 </div>
                             </div>
@@ -173,19 +187,19 @@
                                     <div class="col-4">
                                         <div class="stat-box">
                                             <div class="stat-label">Position</div>
-                                            <div class="stat-value" id="random-position">-</div>
+                                            <div class="stat-value" id="selective_pattern-position">-</div>
                                         </div>
                                     </div>
                                     <div class="col-4">
                                         <div class="stat-box">
                                             <div class="stat-label">UP Price</div>
-                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-up-price">-</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="selective_pattern-up-price">-</div>
                                         </div>
                                     </div>
                                     <div class="col-4">
                                         <div class="stat-box">
                                             <div class="stat-label">DOWN Price</div>
-                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-down-price">-</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="selective_pattern-down-price">-</div>
                                         </div>
                                     </div>
                                 </div>
@@ -193,30 +207,41 @@
                                     <div class="col-4">
                                         <div class="stat-box">
                                             <div class="stat-label">Balance</div>
-                                            <div class="stat-value" style="font-size: 1.3rem; color: var(--text-primary);" id="random-balance">$1000</div>
+                                            <div class="stat-value" style="font-size: 1.3rem; color: var(--text-primary);" id="selective_pattern-balance">$1000</div>
                                         </div>
                                     </div>
                                     <div class="col-4">
                                         <div class="stat-box">
                                             <div class="stat-label">P&L</div>
-                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-pnl">$0.00</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="selective_pattern-pnl">$0.00</div>
                                         </div>
                                     </div>
                                     <div class="col-4">
                                         <div class="stat-box">
                                             <div class="stat-label">Win Rate</div>
-                                            <div class="stat-value" style="font-size: 1.3rem;" id="random-win-rate">--%</div>
+                                            <div class="stat-value" style="font-size: 1.3rem;" id="selective_pattern-win-rate">--%</div>
                                         </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Total Predictions:</small>
+                                        <strong class="strategy-stat-value" id="selective_pattern-total">0</strong>
+                                        <span class="text-muted mx-1">|</span>
+                                        <small class="text-muted">Total Trades:</small>
+                                        <strong class="strategy-stat-value" id="selective_pattern-trades">0</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Last 10:</small>
+                                        <strong class="strategy-stat-value" id="selective_pattern-last10">--%</strong>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-6">
-                                        <small class="text-muted">Total Predictions:</small>
-                                        <strong class="strategy-stat-value" id="random-total">0</strong>
                                     </div>
-                                    <div class="col-6">
-                                        <small class="text-muted">Last 10:</small>
-                                        <strong class="strategy-stat-value" id="random-last10">--%</strong>
+                                    <div class="col-6 text-end">
+                                        <small class="text-muted">In Trade:</small>
+                                        <strong class="strategy-stat-value" id="selective_pattern-in-trade">No</strong>
                                     </div>
                                 </div>
                             </div>
@@ -290,7 +315,7 @@
                                     <label class="form-label">Strategy</label>
                                     <select class="form-select" id="backtest-strategy">
                                         <option value="pattern">Pattern</option>
-                                        <option value="random">Random</option>
+                                        <option value="selective_pattern">Selective Pattern</option>
                                         <option value="both">Both (Compare)</option>
                                     </select>
                                 </div>

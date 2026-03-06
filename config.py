@@ -20,7 +20,7 @@ SYMBOL = "BTCUSDT"  # Binance trading pair
 # STRATEGY PARAMETERS
 # ─────────────────────────────────────────────
 MIN_PERIODS = 20        # Minimum periods needed for pattern analysis
-LOOKBACK_PERIODS = 30   # Number of periods to analyze for patterns
+LOOKBACK_PERIODS = 200  # Number of periods to analyze for patterns (max ~200 due to Binance API 1000 candle limit)
 
 # ─────────────────────────────────────────────
 # DATA FILES
@@ -33,7 +33,7 @@ os.makedirs(STORAGE_DIR, exist_ok=True)
 
 HISTORY_FILE = os.path.join(STORAGE_DIR, "btc_5min_history.json")
 PERFORMANCE_FILE_PATTERN = os.path.join(STORAGE_DIR, "btc_strategy_performance_pattern.json")
-PERFORMANCE_FILE_RANDOM = os.path.join(STORAGE_DIR, "btc_strategy_performance_random.json")
+PERFORMANCE_FILE_SELECTIVE_PATTERN = os.path.join(STORAGE_DIR, "btc_strategy_performance_selective_pattern.json")
 ACTIVITY_FEED_FILE = os.path.join(STORAGE_DIR, "activity_feed.json")
 
 # Legacy file for backward compatibility

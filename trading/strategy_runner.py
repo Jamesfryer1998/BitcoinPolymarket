@@ -10,7 +10,7 @@ from trading.performance_tracker import PerformanceTracker
 from services.polymarket import get_polymarket_api
 from services.trading_engine import TradingEngine
 from services.storage import TradeStorage
-from config import (PERFORMANCE_FILE_PATTERN, PERFORMANCE_FILE_RANDOM,
+from config import (PERFORMANCE_FILE_PATTERN, PERFORMANCE_FILE_SELECTIVE_PATTERN,
                    DEFAULT_BET_AMOUNT, DEFAULT_STARTING_CAPITAL)
 
 
@@ -40,8 +40,8 @@ class StrategyRunner:
         # Use strategy-specific performance file
         if strategy.get_name() == "pattern":
             perf_file = PERFORMANCE_FILE_PATTERN
-        elif strategy.get_name() == "random":
-            perf_file = PERFORMANCE_FILE_RANDOM
+        elif strategy.get_name() == "selective_pattern":
+            perf_file = PERFORMANCE_FILE_SELECTIVE_PATTERN
         else:
             perf_file = f"btc_strategy_performance_{strategy.get_name()}.json"
 
@@ -158,6 +158,7 @@ class StrategyRunner:
             "current_position": self.current_position,
             "performance": self.performance_tracker.get_stats(),
             "predictions_count": len(self.performance_tracker),
+            "total_trades": len(self.trade_storage.get_history()),
             "up_price": self.current_up_price,
             "down_price": self.current_down_price,
             "market_slug": self.current_market_slug,
@@ -288,6 +289,11 @@ class StrategyRunner:
                 self.current_position = new_position
                 self.position_reversed = True
 
+                # Emit full status update to sync all UI fields
+                self._emit_event("strategies_update", {
+                    self.strategy.get_name(): self.get_status()
+                })
+
             else:
                 print(f"[{self.strategy.get_name().upper()}] ✓ Mid-period check: Position {self.current_position} confirmed")
 
@@ -397,6 +403,11 @@ class StrategyRunner:
                         "closed_positions": closed_positions
                     })
 
+                    # Emit full status update to sync all UI fields
+                    self._emit_event("strategies_update", {
+                        self.strategy.get_name(): self.get_status()
+                    })
+
             except Exception as e:
                 print(f"Error recording period: {e}")
                 import traceback
@@ -495,11 +506,56 @@ class StrategyRunner:
                         "down_price": self.current_down_price
                     })
 
+                    # Emit full status update to sync all UI fields
+                    self._emit_event("strategies_update", {
+                        self.strategy.get_name(): self.get_status()
+                    })
+
                 except ValueError as e:
                     print(f"Error placing bet: {e}")
 
+            else:
+                # Strategy decided not to trade - log the reasons
+                print(f"\n[{self.strategy.get_name().upper()}] {current_boundary.strftime('%H:%M')} - SKIPPED TRADE (Score: {score if score is not None else 'N/A'})")
+
+                # Log reasons for skipping
+                if reasons:
+                    for reason in reasons:
+                        print(f"  • {reason}")
+
+                # Create summary message for activity feed
+                if reasons:
+                    # Find the main reason (usually the last one or one mentioning "skipping")
+                    skip_reason = next((r for r in reversed(reasons) if "skip" in r.lower()), reasons[-1] if reasons else "No confidence")
+                    summary = skip_reason
+                else:
+                    summary = "Insufficient confidence to trade"
+
+                # Emit skip event to activity feed
+                self._emit_event("trade_skipped", {
+                    "strategy": self.strategy.get_name(),
+                    "timestamp": current_boundary.isoformat(),
+                    "score": score if score is not None else 0,
+                    "reason": summary,
+                    "all_reasons": reasons
+                })
+
+                # Clear position state
+                self.current_position = None
+                self.current_expected_mid = None
+                self.initial_prediction = None
+
         else:
             print(f"\n[{self.strategy.get_name().upper()}] Waiting for data: {len(history)}/{self.strategy.can_trade.__self__.__class__.__dict__.get('MIN_PERIODS', 20)} periods")
+
+            # Emit waiting event to activity feed
+            self._emit_event("strategy_waiting", {
+                "strategy": self.strategy.get_name(),
+                "timestamp": current_boundary.isoformat(),
+                "current_periods": len(history),
+                "required_periods": 20  # MIN_PERIODS
+            })
+
             self.current_position = None
             self.current_expected_mid = None
             self.initial_prediction = None
